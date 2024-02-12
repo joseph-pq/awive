@@ -7,8 +7,8 @@ frames in defined directory path.
 """
 
 import argparse
-import json
 import time
+import logging
 from typing import Any
 
 import cv2
@@ -16,39 +16,40 @@ import numpy as np
 from numpy.typing import NDArray
 
 import awive.imageprep as ip
-from awive.loader import get_loader
+from awive.loader import make_loader, get_loader
+from awive.config import Config
+
 
 FOLDER_PATH = '/home/joseph/Documents/Thesis/Dataset/config'
+LOG = logging.getLogger(__name__)
 
 
 class Formatter:
     """Format frames in order to be used by image processing methods."""
 
-    def __init__(self, config_path: str, video_identifier: str) -> None:
+    def __init__(self, config: Config) -> None:
         """Initialize Formatter object."""
         # read configuration file
-        with open(config_path) as json_file:
-            self._config = json.load(json_file)[video_identifier]
-
-        sample_image = self._get_sample_image(config_path, video_identifier)
+        self._config: Config = config
+        sample_image = self._get_sample_image(self._config)
         self._shape = (sample_image.shape[0], sample_image.shape[1])
-        if self._config["dataset"]['gcp']['apply']:
+        if self._config.dataset.gcp.apply:
             self._or_params = self._get_orthorectification_params(sample_image)
         else:
             self._or_params = None
 
-        self._rotation_angle = self._config["preprocessing"]['rotate_image']
+        self._rotation_angle = self._config.preprocessing.rotate_image
         self._rotation_matrix = self._get_rotation_matrix()
 
-        w_slice = slice(self._config["preprocessing"]['roi']['w1'],
-                        self._config["preprocessing"]['roi']['w2'])
-        h_slice = slice(self._config["preprocessing"]['roi']['h1'],
-                        self._config["preprocessing"]['roi']['h2'])
+        w_slice = slice(self._config.preprocessing.roi.w1,
+                        self._config.preprocessing.roi.w2)
+        h_slice = slice(self._config.preprocessing.roi.h1,
+                        self._config.preprocessing.roi.h2)
         self._slice = (w_slice, h_slice)
-        w_slice = slice(self._config["preprocessing"]['pre_roi']['w1'],
-                        self._config["preprocessing"]['pre_roi']['w2'])
-        h_slice = slice(self._config["preprocessing"]['pre_roi']['h1'],
-                        self._config["preprocessing"]['pre_roi']['h2'])
+        w_slice = slice(self._config.preprocessing.pre_roi.w1,
+                        self._config.preprocessing.pre_roi.w2)
+        h_slice = slice(self._config.preprocessing.pre_roi.h1,
+                        self._config.preprocessing.pre_roi.h2)
         self._pre_slice = (w_slice, h_slice)
 
     def _get_orthorectification_params(
@@ -56,28 +57,30 @@ class Formatter:
         sample_image: np.ndarray,
         reduce=None
     ) -> tuple[Any, NDArray]:
-        x = self._config['gcp']['pixels']
-        df_from = list(map(list, zip(*[(v) for k, v in x.items()])))
+        # FIX: This is a temporary fix. I shouldn't be converting to dictionary
+        x = self._config.dataset.gcp.pixels.dict()
+        df_from = list(map(list, zip(*[(v) for _, v in x.items()])))
         if reduce is not None:
             for i, _ in enumerate(df_from):
                 df_from[i][0] = df_from[i][0]-reduce[0]
                 df_from[i][1] = df_from[i][1]-reduce[1]
 
-        x = self._config["dataset"]['gcp']['meters']
-        df_to = list(map(list, zip(*[(v) for k, v in x.items()])))
-        if self._config["preprocessing"]['image_correction']['apply']:
+        # FIX: This is a temporary fix. I shouldn't be converting to dictionary
+        x = self._config.dataset.gcp.meters.dict()
+        df_to = list(map(list, zip(*[(v) for _, v in x.items()])))
+        if self._config.preprocessing.image_correction.apply:
             corr_img = ip.lens_corr(
                     sample_image,
-                    k1=self._config["preprocessing"]['image_correction']['k1'],
-                    c=self._config["preprocessing"]['image_correction']['c'],
-                    f=self._config["preprocessing"]['image_correction']['f']
+                    k1=self._config.preprocessing.image_correction.k1,
+                    c=self._config.preprocessing.image_correction.c,
+                    f=self._config.preprocessing.image_correction.f
                     )
         else:
             corr_img = sample_image
-        M, C, __ = ip.orthorect_param(corr_img,
+        M, C, _ = ip.orthorect_param(corr_img,
                                       df_from,
                                       df_to,
-                                      PPM=self._config["dataset"]['PPM'],
+                                      PPM=self._config.dataset.ppm,
                                       lonlat=False)
         return (M, C)
 
@@ -110,8 +113,8 @@ class Formatter:
         return rot_mat
 
     @staticmethod
-    def _get_sample_image(config_path: str, vid_identifier: str) -> np.ndarray:
-        loader = get_loader(config_path, vid_identifier)
+    def _get_sample_image(config: Config) -> np.ndarray:
+        loader = make_loader(config.dataset)
         image = loader.read()
         loader.end()
         return image
@@ -173,8 +176,8 @@ class Formatter:
 
     def _crop_using_refs(self, image: np.ndarray) -> np.ndarray:
         image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        xs = self._config["dataset"]['gcp']['pixels']['y']
-        ys = self._config["dataset"]['gcp']['pixels']['x']
+        xs = self._config.dataset.gcp.pixels.y
+        ys = self._config.dataset.gcp.pixels.x
         xslice = slice(min(xs), max(xs)+1)
         yslice = slice(min(ys), max(ys)+1)
         image = image[xslice, yslice]
@@ -185,17 +188,20 @@ class Formatter:
 
     def apply_distortion_correction(self, image: np.ndarray) ->np.ndarray:
         """Given GCP, undistort image."""
-        if not self._config["dataset"]['gcp']['apply']:
+        if not self._config.dataset.gcp.apply:
+            return image
+        if self._or_params is None:
+            LOG.error('No orthorectification parameters found')
             return image
 
         image = self._crop_using_refs(image)
         # apply lens distortion correction
-        if self._config["preprocessing"]['image_correction']['apply']:
+        if self._config.preprocessing.image_correction.apply:
             image = ip.lens_corr(
                     image,
-                    k1=self._config["preprocessing"]['image_correction']['k1'],
-                    c=self._config["preprocessing"]['image_correction']['c'],
-                    f=self._config["preprocessing"]['image_correction']['f']
+                    k1=self._config.preprocessing.image_correction.k1,
+                    c =self._config.preprocessing.image_correction.c,
+                    f =self._config.preprocessing.image_correction.f,
                     )
 
         # apply orthorectification
@@ -212,10 +218,11 @@ class Formatter:
 
 def main(config_path: str, video_identifier: str, save_image: bool):
     """Demonstrate basic example of video correction."""
+    config: Config = Config.from_json(config_path, video_identifier)
     t0 = time.process_time()
     loader = get_loader(config_path, video_identifier)
     t1 = time.process_time()
-    formatter = Formatter(config_path, video_identifier)
+    formatter = Formatter(config)
     t2 = time.process_time()
     image = loader.read()
     t3 = time.process_time()

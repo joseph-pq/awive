@@ -42,7 +42,7 @@ class ConfigImageCorrection(BaseModel):
 
     apply: bool
     k1: float
-    c: float
+    c: int
     f: float
 
 
@@ -135,6 +135,8 @@ class Config(BaseModel):
     preprocessing: ConfigPreProcessing
 
     @staticmethod
-    def from_json(file_path: str, video_id: str):
+    def from_json(file_path: str, video_id: str | None = None):
         """Load config from json."""
+        if video_id is None:
+            return Config(**json.load(Path(file_path).open()))
         return Config(**json.load(Path(file_path).open())[video_id])
