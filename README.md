@@ -14,6 +14,7 @@ pip install awive
 
 ## Usage
 
+If you want to know how to configure the json file, use the [awive configurator](https://github.com/JosephPenaQuino/awive-configurator)
 Execute the commands below:
 
 ```
