@@ -11,3 +11,13 @@ Install and update using pip:
 ```bash
 pip install awive
 ```
+
+## Usage
+
+Execute the commands below:
+
+```
+pyenv local 3.11.2
+poetry install
+poetry run python -m awive.otv river-brenta d0000 -v
+```
