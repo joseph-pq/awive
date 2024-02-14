@@ -1,14 +1,15 @@
 """Optical Tracking Image Velocimetry."""
 
 import argparse
-import random
-import json
 import math
-import numpy as np
+import random
+
 import cv2
+import numpy as np
+
+from awive.config import Config
 from awive.correct_image import Formatter
-from awive.loader import (get_loader, Loader)
-# from sti import applyMean
+from awive.loader import Loader, make_loader
 
 
 FOLDER_PATH = "examples/datasets"
@@ -67,15 +68,13 @@ class OTV():
 
     def __init__(
         self,
-        config_path: str,
-        video_identifier: str,
+        config_: Config,
         prev_gray: np.ndarray,
         debug=0
     ) -> None:
+        root_config = config_.dict()
+        config = config_.otv.dict()
         self._debug = debug
-        with open(config_path) as json_file:
-            root_config = json.load(json_file)[video_identifier]
-            config = root_config['otv']
         self._partial_max_angle = config['partial_max_angle']
         self._partial_min_angle = config['partial_min_angle']
         self._final_max_angle = config['final_max_angle']
@@ -239,7 +238,7 @@ class OTV():
                 print('Analyzing frame:', loader.index)
             if previous_frame is not None:
                 pts1 = cv2.KeyPoint_convert(keypoints_current)
-                pts2, st, err = cv2.calcOpticalFlowPyrLK(
+                pts2, st, _ = cv2.calcOpticalFlowPyrLK(
                     previous_frame,
                     current_frame,
                     pts1,
@@ -435,13 +434,14 @@ def run_otv(config_path: str, video_identifier: str, show_video=False, debug=0):
         6. Crop
         7. Convert to gray scale
     """
-    loader = get_loader(config_path, video_identifier)
-    formatter = Formatter(config_path, video_identifier)
+    config = Config.from_json(config_path)
+    loader: Loader = make_loader(config.dataset)
+    formatter = Formatter(config)
     loader.has_images()
     image = loader.read()
     prev_gray = formatter.apply_distortion_correction(image)
     prev_gray = formatter.apply_roi_extraction(prev_gray)
-    otv = OTV(config_path, video_identifier, prev_gray, debug)
+    otv = OTV(config, prev_gray, debug)
     return otv.run(loader, formatter, show_video)
 
 
