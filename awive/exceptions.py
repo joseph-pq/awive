@@ -1,0 +1,2 @@
+class VideoSourceError(Exception):
+    pass

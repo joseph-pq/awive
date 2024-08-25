@@ -42,7 +42,7 @@ class Loader(metaclass=abc.ABCMeta):
         """Check if the source contains one more frame."""
 
     @abc.abstractmethod
-    def read(self) -> NDArray[np.uint8]:
+    def read(self) -> cv2.typing.MatLike | None:
         """Read a new image from the source."""
 
     @abc.abstractmethod
@@ -77,7 +77,7 @@ class ImageLoader(Loader):
         """Set index of the loader to read any image from the folder."""
         self._index = index
 
-    def read(self) -> np.ndarray:
+    def read(self) -> cv2.typing.MatLike | None:
         """Read a new image from the source."""
         self._index += 1
         path: str = self._path(self._index)
@@ -133,7 +133,7 @@ class VideoLoader(Loader):
         self._image_read = False
         return ret
 
-    def read(self) -> NDArray[np.uint8]:
+    def read(self) -> cv2.typing.MatLike | None:
         """Read a new image from the source."""
         self._index += 1
         if self._image_read:
@@ -150,9 +150,8 @@ class VideoLoader(Loader):
 
 def make_loader(config: ConfigDataset):
     """Make a loader based on config."""
-    image_folder_path = config.image_dataset
     # check if the image_folder_path contains any jpg or png file
-    for file in Path(image_folder_path).iterdir():
+    for file in Path(config.image_dataset).iterdir():
         if file.suffix in ('.jpg', '.png'):
             return ImageLoader(config)
 

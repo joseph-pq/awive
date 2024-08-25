@@ -18,6 +18,7 @@ from numpy.typing import NDArray
 import awive.imageprep as ip
 from awive.loader import make_loader, get_loader
 from awive.config import Config
+from awive.exceptions import VideoSourceError
 
 
 FOLDER_PATH = '/home/joseph/Documents/Thesis/Dataset/config'
@@ -32,6 +33,8 @@ class Formatter:
         # read configuration file
         self._config: Config = config
         sample_image = self._get_sample_image(self._config)
+        if sample_image is None:
+            raise VideoSourceError('No sample image found')
         self._shape = (sample_image.shape[0], sample_image.shape[1])
         if self._config.dataset.gcp.apply:
             self._or_params = self._get_orthorectification_params(sample_image)
@@ -113,9 +116,9 @@ class Formatter:
         return rot_mat
 
     @staticmethod
-    def _get_sample_image(config: Config) -> np.ndarray:
+    def _get_sample_image(config: Config) -> np.ndarray | None:
         loader = make_loader(config.dataset)
-        image = loader.read()
+        image: np.ndarray | None = loader.read()
         loader.end()
         return image
 
