@@ -436,7 +436,7 @@ def run_otv(
     prev_gray = formatter.apply_distortion_correction(image)
     prev_gray = formatter.apply_roi_extraction(prev_gray)
     otv = OTV(config, prev_gray, debug)
-    return otv.run(loader, formatter, show_video), loader.current_image
+    return otv.run(loader, formatter, show_video), prev_gray
 
 
 if __name__ == "__main__":
@@ -457,6 +457,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "-v", "--video", action="store_true", help="Play video while processing"
     )
+    parser.add_argument(
+        "-s",
+        "--save_image",
+        action="store_true",
+        help="Save image instead of showing",
+    )
     args = parser.parse_args()
     velocities, image = run_otv(
         config_path=args.config,
@@ -464,4 +470,7 @@ if __name__ == "__main__":
         show_video=args.video,
         debug=args.debug,
     )
+    if args.save_image and image is not None:
+        print("Saving image")
+        cv2.imwrite("tmp.jpg", image)
     print(f"{velocities=}")

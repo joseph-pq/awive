@@ -110,7 +110,6 @@ class VideoLoader(Loader):
             raise FileNotFoundError(f'Video not found: {config.video_path}')
 
         self._cap: cv2.VideoCapture = cv2.VideoCapture(self.config.video_path)
-        self.current_image = None  # Current image
         self._image_read: bool = False  # Check if the current images was read
 
         # Get number of frames
