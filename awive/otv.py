@@ -362,7 +362,7 @@ class OTV:
             print("count:", count)
 
         out_json: dict[str, dict[str, float]] = {}
-        for i, sv in enumerate(regions):
+        for i, (sv, position) in enumerate(zip(regions, self._regions)):
             out_json[str(i)] = {}
             t = np.array(sv)
             t = t[t != 0]
@@ -373,6 +373,7 @@ class OTV:
                 m = 0
             out_json[str(i)]["velocity"] = m
             out_json[str(i)]["count"] = len(t)
+            out_json[str(i)]["position"] = position
         return out_json
 
 
