@@ -24,6 +24,7 @@ class Loader(metaclass=abc.ABCMeta):
         self._offset: int = config.image_number_offset
         self._index: int = 0
         self.config = config
+        self.current_image: NDArray | None = None
         self.fps: int = 1
         self.total_frames = 0
 
@@ -109,7 +110,7 @@ class VideoLoader(Loader):
             raise FileNotFoundError(f'Video not found: {config.video_path}')
 
         self._cap: cv2.VideoCapture = cv2.VideoCapture(self.config.video_path)
-        self._image = None  # Current image
+        self.current_image = None  # Current image
         self._image_read: bool = False  # Check if the current images was read
 
         # Get number of frames
@@ -129,7 +130,7 @@ class VideoLoader(Loader):
         """Check if the source contains one more frame."""
         if not self._cap.isOpened():
             return False
-        ret, self._image = self._cap.read()
+        ret, self.current_image = self._cap.read()
         self._image_read = False
         return ret
 
@@ -137,11 +138,11 @@ class VideoLoader(Loader):
         """Read a new image from the source."""
         self._index += 1
         if self._image_read:
-            ret, self._image = self._cap.read()
+            ret, self.current_image = self._cap.read()
             if not ret:
                 print('error at reading')
         self._image_read = True
-        return self._image
+        return self.current_image
 
     def end(self) -> None:
         """Free all resources."""
