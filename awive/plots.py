@@ -14,7 +14,6 @@ def draw_velocities(
     min is blue.
 
     Args:
-
         velocities: dictionary of velocities. keys are the velocity and values
             are dicts with three keys: "velocity", "position", and "count".
             velocity: velocity value in p/s.
@@ -26,40 +25,39 @@ def draw_velocities(
 
     Returns:
         an image with the velocities arrows.
-
     """
     # Extract all velocity values
     velocity_values = [v["velocity"] for v in velocities.values()]
 
     # Determine min and max velocities
-    min_velocity = min(velocity_values) if min(velocity_values) < 0 else 0
-    max_velocity = (
-        max(velocity_values) if max(velocity_values) > max_velocity else max_velocity
-    )
+    min_velocity = min(min(velocity_values), 0)
+    max_velocity = max(max(velocity_values), max_velocity)
     max_length = image.shape[1] // 4
+    thickness = image.shape[0] // 100
 
     # Iterate over the velocities and draw arrows
-    for i, velocity_info in enumerate(velocities.values()):
+    for velocity_info in velocities.values():
         velocity = velocity_info["velocity"]
-        position = 2 * image.shape[0] // 3, velocity_info["position"]
+        position = (2 * image.shape[0] // 3, velocity_info["position"])
 
         # Normalize velocity between 0 and 1
         norm_velocity = (velocity - min_velocity) / (max_velocity - min_velocity)
         # Calculate the end position of the arrow based on the velocity
         end_position = (position[0] - int(norm_velocity * max_length), position[1])
-        print(f"{norm_velocity=}, {end_position=}")
+
+        # Map normalized velocity to color
+        color = cv2.applyColorMap(
+            np.array([[int(255 - norm_velocity * 255)]], dtype=np.uint8),
+            cv2.COLORMAP_JET,
+        ).flatten().tolist()
+
         # Draw the arrow
-        cv2.arrowedLine(  # type: ignore
+        cv2.arrowedLine(  # pyright: ignore[reportCallIssue]
             image,
-            position,
-            end_position,
-            cv2.applyColorMap(
-                np.array([[int(255 - norm_velocity * 255)]], dtype=np.uint8),
-                cv2.COLORMAP_JET,
-            )
-            .flatten()
-            .tolist(),
-            thickness=image.shape[0] // 100,
+            position,  # pyright: ignore[reportArgumentType]
+            end_position,  # pyright: ignore[reportArgumentType]
+            color,
+            thickness=thickness,
             tipLength=0.15,
         )
 
