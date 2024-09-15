@@ -16,6 +16,13 @@ pydantic = ">=1.10.2"
 types-requests = "^2.31.0.20240125"
 requests = "^2.31.0"
 
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+mkdocs = "^1.6.1"
+mkdocs-material = "^9.5.34"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

@@ -1,5 +1,6 @@
 site_name: AWIVE
-pages:
-      - Home: index.md
-      - About: about.md
-theme: readthedocs
+site_url: https://josephpenaquino.github.io/awive
+theme: material
+
+nav:
+  - Home: index.md
