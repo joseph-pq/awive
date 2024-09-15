@@ -22,6 +22,7 @@ optional = true
 [tool.poetry.group.docs.dependencies]
 mkdocs = "^1.6.1"
 mkdocs-material = "^9.5.34"
+mkdocstrings-python = "^1.11.1"
 
 [tool.poetry.group.plots]
 optional = true
