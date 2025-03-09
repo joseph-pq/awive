@@ -43,7 +43,7 @@ class Loader(metaclass=abc.ABCMeta):
         """Check if the source contains one more frame."""
 
     @abc.abstractmethod
-    def read(self) -> cv2.typing.MatLike | None:
+    def read(self) -> np.ndarray | None:
         """Read a new image from the source."""
 
     @abc.abstractmethod
@@ -78,7 +78,7 @@ class ImageLoader(Loader):
         """Set index of the loader to read any image from the folder."""
         self._index = index
 
-    def read(self) -> cv2.typing.MatLike | None:
+    def read(self) -> np.ndarray | None:
         """Read a new image from the source."""
         self._index += 1
         path: str = self._path(self._index)
@@ -133,7 +133,7 @@ class VideoLoader(Loader):
         self._image_read = False
         return ret
 
-    def read(self) -> cv2.typing.MatLike | None:
+    def read(self) -> np.ndarray | None:
         """Read a new image from the source."""
         self._index += 1
         if self._image_read:
