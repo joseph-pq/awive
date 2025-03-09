@@ -38,8 +38,8 @@ class WaterlevelDetector:
         self._kernel = np.ones((ksize, ksize), np.uint8)
 
     def _get_difference_accumulation(self, plot):
-        cnt = 0
-        buffer = []
+        # cnt = 0
+        # buffer = []
         accumulated_image = np.zeros(self._roi_shape)
 
         image = self._loader.read()

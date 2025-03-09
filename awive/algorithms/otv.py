@@ -202,10 +202,12 @@ class OTV:
         if loader.image_shape[1] < self._height:
             self._height = loader.image_shape[1]
 
-        subregion_velocity = self._init_subregion_list(2, self._width)
-        subregion_trajectories = self._init_subregion_list(1, self._width)
+        # subregion_velocity = self._init_subregion_list(2, self._width)
+        # subregion_trajectories = self._init_subregion_list(1, self._width)
 
-        regions:list[list[float]] = list([] for _ in range(len(self._regions)))
+        regions: list[list[float]] = list(
+            [] for _ in range(len(self._regions))
+        )
 
         # Initialization
         for i in range(loader.total_frames):
