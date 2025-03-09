@@ -5,7 +5,7 @@ import math
 import argparse
 import cv2
 import numpy as np
-from correct_image import Formatter
+from awive.preprocess.correct_image import Formatter
 from loader import get_loader
 import time
 

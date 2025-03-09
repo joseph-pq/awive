@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 
 from awive.config import Config
-from awive.correct_image import Formatter
+from awive.preprocess.correct_image import Formatter
 from awive.loader import Loader, make_loader
 
 

@@ -15,7 +15,7 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-import awive.imageprep as ip
+import awive.preprocess.imageprep as ip
 from awive.config import Config
 from awive.exceptions import VideoSourceError
 from awive.loader import get_loader, make_loader
