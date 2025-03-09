@@ -1,16 +1,17 @@
 """Optical Tracking Image Velocimetry."""
 
-from pathlib import Path
 import argparse
 import math
 import random
+from pathlib import Path
 
 import cv2
 import numpy as np
+from numpy.typing import NDArray
 
 from awive.config import Config
-from awive.preprocess.correct_image import Formatter
 from awive.loader import Loader, make_loader
+from awive.preprocess.correct_image import Formatter
 
 
 def get_magnitude(kp1, kp2):
@@ -99,11 +100,13 @@ class OTV:
         self.lines_width = config_.otv.lines_width
         self.resize_factor = config_.otv.resize_factor
         if len(mask_path) != 0:
-            self._mask = cv2.imread(mask_path, 0) > 1
+            self._mask: NDArray[np.uint8] | None = (
+                cv2.imread(mask_path, 0) > 1
+            ).astype(np.uint8)
             self._mask = cv2.resize(
-                self._mask.astype(np.uint8),
+                self._mask,
                 (self._height, self._width),
-                cv2.INTER_NEAREST,
+                cv2.INTER_NEAREST,  # type: ignore[arg-type]
             )
         else:
             self._mask = None
@@ -175,20 +178,20 @@ class OTV:
         # initialze parametrers
         detector = cv2.FastFeatureDetector_create()
         previous_frame = None
-        keypoints_current = []
+        keypoints_current: list[cv2.KeyPoint] = []
         keypoints_start = []
         time = []
-        keypoints_predicted = []
-        masks = []
+        keypoints_predicted: list[cv2.KeyPoint] = []
+        masks: list[NDArray] = []
 
-        valid = []
-        velocity_mem = []
-        keypoints_mem_current = []
-        keypoints_mem_predicted = []
-        velocity = []
-        angle = []
-        distance = []
-        path = []
+        valid: list[list[bool]] = []
+        velocity_mem: list[list[int]] = []
+        keypoints_mem_current: list[list[cv2.KeyPoint]] = []
+        keypoints_mem_predicted: list[list[cv2.KeyPoint]] = []
+        velocity: list[list[float]] = []
+        angle: list[list[float]] = []
+        distance: list[list[float]] = []
+        path: list[list[int]] = []
 
         # traj_map must have the size of the image after all preprocessing
         traj_map = np.zeros_like(self.prev_gray)
@@ -202,7 +205,7 @@ class OTV:
         subregion_velocity = self._init_subregion_list(2, self._width)
         subregion_trajectories = self._init_subregion_list(1, self._width)
 
-        regions = list([] for _ in range(len(self._regions)))
+        regions:list[list[float]] = list([] for _ in range(len(self._regions)))
 
         # Initialization
         for i in range(loader.total_frames):
@@ -216,6 +219,9 @@ class OTV:
         while loader.has_images():
             # get current frame
             current_frame = loader.read()
+            if current_frame is None:
+                # TODO: This is not the best way to handle this
+                break
             current_frame = formatter.apply_distortion_correction(
                 current_frame
             )
@@ -262,7 +268,7 @@ class OTV:
                 keypoints_predicted.clear()
                 for pt2 in pts2:
                     keypoints_predicted.append(
-                        cv2.KeyPoint(pt2[0], pt2[1], 1.0)
+                        cv2.KeyPoint(pt2[0], pt2[1], 1.0)  # type: ignore[call-arg]
                     )
 
                 max_distance = self._max_level * (2 * self._radius + 1)
