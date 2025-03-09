@@ -6,9 +6,9 @@ import json
 import cv2
 import numpy as np
 
+from awive.config import Config
+from awive.loader import Loader, get_loader
 from awive.preprocess.correct_image import Formatter
-from loader import Loader, get_loader
-
 
 FOLDER_PATH = "/home/joseph/Documents/Thesis/Dataset/config"
 RESIZE_RATIO = 5
@@ -21,7 +21,7 @@ def play(
     roi=True,
     time_delay=1,
     resize=False,
-    wlcrop=None,
+    wlcrop: tuple[tuple[int, int], tuple[int, int]] | None = None,
     blur=True,
     resize_factor: float | None = None,
 ) -> None:
@@ -30,6 +30,8 @@ def play(
 
     while loader.has_images():
         image = loader.read()
+        if image is None:
+            continue
         if undistort:
             image = formatter.apply_distortion_correction(image)
         if roi:
@@ -37,7 +39,9 @@ def play(
                 image, resize_factor=resize_factor
             )
         elif wlcrop is not None:
-            image = image[wlcrop[0], wlcrop[1]]
+            image = image[
+                wlcrop[0][0] : wlcrop[0][1], wlcrop[1][0] : wlcrop[1][1]
+            ]
         if blur:
             image = cv2.medianBlur(image, 5)
         if resize:
@@ -65,13 +69,14 @@ def main(
 ) -> None:
     """Read configurations and play video."""
     loader = get_loader(config_path, video_identifier)
-    formatter = Formatter(config_path, video_identifier)
+    config = Config.from_json(config_path)
+    formatter = Formatter(config)
     if wlcrop:
         with open(config_path) as json_file:
             config = json.load(json_file)[video_identifier]["water_level"]
         roi2 = config["roi"]
-        wr0 = slice(roi2[0][0], roi2[1][0])
-        wr1 = slice(roi2[0][1], roi2[1][1])
+        wr0 = (roi2[0][0], roi2[1][0])
+        wr1 = (roi2[0][1], roi2[1][1])
         crop = (wr0, wr1)
     else:
         crop = None

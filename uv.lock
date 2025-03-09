@@ -31,6 +31,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "opencv-stubs" },
     { name = "requests" },
     { name = "types-requests" },
 ]
@@ -53,6 +54,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "opencv-stubs", specifier = ">=0.0.11" },
     { name = "requests", specifier = ">=2.31.0" },
     { name = "types-requests", specifier = ">=2.31.0.20240125" },
 ]
@@ -1051,6 +1053,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/fb/45/60eaff54776b73a4c69bca7669fac5c5fe61b03b80170cf0e01c2ffd846d/opencv_python-4.6.0.66-cp36-abi3-win32.whl", hash = "sha256:f482e78de6e7b0b060ff994ffd859bddc3f7f382bb2019ef157b0ea8ca8712f5", size = 26171736 },
     { url = "https://files.pythonhosted.org/packages/cf/09/b24c266cd61ddeed101b90c92a26f54d060b06f4a1b102eb891576d6e9e2/opencv_python-4.6.0.66-cp36-abi3-win_amd64.whl", hash = "sha256:0dc82a3d8630c099d2f3ac1b1aabee164e8188db54a786abb7a4e27eba309440", size = 35574793 },
     { url = "https://files.pythonhosted.org/packages/c6/00/858e894a2127b3a1b5479812b1bd3669bca64175dff4fc7c778e0a6ee565/opencv_python-4.6.0.66-cp37-abi3-macosx_11_0_arm64.whl", hash = "sha256:6e32af22e3202748bd233ed8f538741876191863882eba44e332d1a34993165b", size = 30020272 },
+]
+
+[[package]]
+name = "opencv-stubs"
+version = "0.0.11"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2a/58/d6e71d18a4776ee62a4868508f87a4a3720b33afe60859c32a293e2ec572/opencv_stubs-0.0.11.tar.gz", hash = "sha256:8550ae1de0674acd4c2294c1abf2f87b1a43ae9ddf2467faa067551506e395c0", size = 341458 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/73/27/7eab295a3cb1effdbc8e85094d369a4043312fa219215a93017d64163784/opencv_stubs-0.0.11-py3-none-any.whl", hash = "sha256:bed8c62e76492164bd39caf20213fabdb92d573a75c505907331833319659e6a", size = 362473 },
 ]
 
 [[package]]
