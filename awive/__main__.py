@@ -2,7 +2,7 @@
 import time
 import argparse
 
-from awive import (
+from awive.algorithms import (
     otv,
     sti,
     water_level_hist,
