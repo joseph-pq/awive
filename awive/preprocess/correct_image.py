@@ -36,7 +36,9 @@ class Formatter:
             raise VideoSourceError("No sample image found")
         self._shape = (sample_image.shape[0], sample_image.shape[1])
         if self._config.dataset.gcp.apply:
-            self._or_params = self._get_orthorectification_params(sample_image)
+            self._or_params: tuple[Any, np.ndarray] | None = (
+                self._get_orthorectification_params(sample_image)
+            )
         else:
             self._or_params = None
 
@@ -239,6 +241,9 @@ def main(config_path: str, video_identifier: str, save_image: bool):
     formatter = Formatter(config)
     t2 = time.process_time()
     image = loader.read()
+    if image is None:
+        print("No image found")
+        return
     t3 = time.process_time()
     image = formatter.apply_distortion_correction(image)
     t4 = time.process_time()

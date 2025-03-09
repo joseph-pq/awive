@@ -46,7 +46,9 @@ def basic_plot_image(config_path: str, video_identifier: str) -> None:
     loader: Loader = get_loader(config_path, video_identifier)
     if not loader.has_images():
         raise ValueError("The video does not have images")
-    image: NDArray[np.uint8] = loader.read()
+    image: NDArray[np.uint8] | None = loader.read()
+    if image is None:
+        raise ValueError("The image is None")
     cv2.imshow("image", image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()

@@ -11,7 +11,7 @@ import json
 import argparse
 import numpy as np
 import cv2
-from loader import get_loader
+from awive.loader import get_loader
 
 
 FOLDER_PATH = "/home/joseph/Documents/Thesis/Dataset/config"

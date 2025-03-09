@@ -109,11 +109,11 @@ class VideoLoader(Loader):
         if not Path(config.video_path).exists():
             raise FileNotFoundError(f"Video not found: {config.video_path}")
 
-        self._cap: cv2.VideoCapture = cv2.VideoCapture(self.config.video_path)
+        self._cap: cv2.VideoCapture = cv2.VideoCapture(self.config.video_path)  # type: ignore[call-arg]
         self._image_read: bool = False  # Check if the current images was read
 
         # Get number of frames
-        cap: cv2.VideoCapture = cv2.VideoCapture(self.config.video_path)
+        cap: cv2.VideoCapture = cv2.VideoCapture(self.config.video_path)  # type: ignore[call-arg]
         property_id: int = int(cv2.CAP_PROP_FRAME_COUNT)
         self.total_frames = int(cv2.VideoCapture.get(cap, property_id)) + 1
         self.fps = cap.get(cv2.CAP_PROP_FPS)
@@ -177,6 +177,9 @@ def main(config_path: str, video_identifier: str, save_image: bool):
     """Execute a basic example of loader."""
     loader = get_loader(config_path, video_identifier)
     image = loader.read()
+    if image is None:
+        print("No image found")
+        return
     if save_image:
         cv2.imwrite("tmp.jpg", image)
     else:

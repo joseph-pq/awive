@@ -62,7 +62,7 @@ def draw_velocities(
 
         # Draw the arrow
         cv2.arrowedLine(  # pyright: ignore[reportCallIssue]
-            image,
+            image,  # type: ignore[arg-type]
             position,  # pyright: ignore[reportArgumentType]
             end_position,  # pyright: ignore[reportArgumentType]
             color,
