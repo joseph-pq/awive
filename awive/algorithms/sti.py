@@ -1,14 +1,16 @@
 """Space Time Image Velocimetry."""
 
+import argparse
 import json
 import math
-import argparse
-import cv2
-import numpy as np
-from awive.preprocess.correct_image import Formatter
-from loader import get_loader
 import time
 
+import cv2
+import numpy as np
+from numpy.typing import NDArray
+
+from awive.loader import get_loader
+from awive.preprocess.correct_image import Formatter
 
 FOLDER_PATH = "/home/joseph/Documents/Thesis/Dataset/config"
 
@@ -27,7 +29,7 @@ class STIV:
         # Shall be initialized later
         self._fps = None
 
-        self._stis = []
+        self._stis: list[list[NDArray]] = []
         self._stis_qnt = len(self._config["lines"])
         self._ksize = self._config["ksize"]
         t0 = time.process_time()
