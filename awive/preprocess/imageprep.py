@@ -1,4 +1,5 @@
 """Image preparation."""
+
 import cv2
 import numpy as np
 
@@ -24,10 +25,10 @@ def lens_corr(img, k1=-10.0e-6, c=2, f=8.0):
     # define camera matrix
     mtx = np.eye(3, dtype=np.float32)
 
-    mtx[0, 2] = width/c     # define center x
-    mtx[1, 2] = height/c    # define center y
-    mtx[0, 0] = f           # define focal length x
-    mtx[1, 1] = f           # define focal length y
+    mtx[0, 2] = width / c  # define center x
+    mtx[1, 2] = height / c  # define center y
+    mtx[0, 0] = f  # define focal length x
+    mtx[1, 1] = f  # define focal length y
 
     # correct image for lens distortion
     corr_img = cv2.undistort(img, mtx, dist)
@@ -101,7 +102,7 @@ def orthorect_param(img, df_from, df_to, PPM=100, lonlat=False):
     # Multiple elements inside df_to by PPM
     df_too = []
     for x in df_to:
-        df_too.append(list(map(lambda x: x*PPM, x)))
+        df_too.append(list(map(lambda x: x * PPM, x)))
     pts2 = np.float32(df_too)
 
     # define transformation matrix based on GCPs
@@ -111,10 +112,9 @@ def orthorect_param(img, df_from, df_to, PPM=100, lonlat=False):
     # height, width, __ = img.shape
     height = img.shape[0]
     width = img.shape[1]
-    C = np.array([[0, 0, 1],
-                  [width, 0, 1],
-                  [0, height, 1],
-                  [width, height, 1]])
+    C = np.array(
+        [[0, 0, 1], [width, 0, 1], [0, height, 1], [width, height, 1]]
+    )
     C_new = np.array([(np.dot(i, M.T) / np.dot(i, M.T)[2])[:2] for i in C])
 
     C_new[:, 0] -= min(C_new[:, 0])
@@ -123,8 +123,7 @@ def orthorect_param(img, df_from, df_to, PPM=100, lonlat=False):
     # define new transformation matrix based on image corners
     # otherwise, part of the imagery will not be saved
     M_new = cv2.getPerspectiveTransform(
-        np.float32(C[:, :2]),
-        np.float32(C_new)
+        np.float32(C[:, :2]), np.float32(C_new)
     )
 
     return M_new, C_new, df_to
@@ -180,10 +179,10 @@ def color_corr(img, alpha=None, beta=None, gamma=0.5):
         corr_img = cv2.convertScaleAbs(corr_img, alpha=alpha, beta=beta)
 
     # apply gamma correction
-    invGamma = 1./gamma
-    table = (np.array([
-        ((i / 255.0) ** invGamma) * 255
-        for i in np.arange(0, 256)]).astype('uint8'))
+    invGamma = 1.0 / gamma
+    table = np.array(
+        [((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]
+    ).astype("uint8")
 
     corr_img = cv2.LUT(corr_img, table)
 

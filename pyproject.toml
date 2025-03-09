@@ -28,3 +28,7 @@ plots = [
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
+
+[tool.ruff]
+# Set the maximum line length to 79.
+line-length = 79

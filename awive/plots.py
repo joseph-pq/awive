@@ -41,15 +41,24 @@ def draw_velocities(
         position = (2 * image.shape[0] // 3, velocity_info["position"])
 
         # Normalize velocity between 0 and 1
-        norm_velocity = (velocity - min_velocity) / (max_velocity - min_velocity)
+        norm_velocity = (velocity - min_velocity) / (
+            max_velocity - min_velocity
+        )
         # Calculate the end position of the arrow based on the velocity
-        end_position = (position[0] - int(norm_velocity * max_length), position[1])
+        end_position = (
+            position[0] - int(norm_velocity * max_length),
+            position[1],
+        )
 
         # Map normalized velocity to color
-        color = cv2.applyColorMap(
-            np.array([[int(255 - norm_velocity * 255)]], dtype=np.uint8),
-            cv2.COLORMAP_JET,
-        ).flatten().tolist()
+        color = (
+            cv2.applyColorMap(
+                np.array([[int(255 - norm_velocity * 255)]], dtype=np.uint8),
+                cv2.COLORMAP_JET,
+            )
+            .flatten()
+            .tolist()
+        )
 
         # Draw the arrow
         cv2.arrowedLine(  # pyright: ignore[reportCallIssue]

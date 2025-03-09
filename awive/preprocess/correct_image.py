@@ -44,17 +44,21 @@ class Formatter:
         self._rotation_matrix = self._get_rotation_matrix()
 
         w_slice = slice(
-            self._config.preprocessing.roi.w1, self._config.preprocessing.roi.w2
+            self._config.preprocessing.roi.w1,
+            self._config.preprocessing.roi.w2,
         )
         h_slice = slice(
-            self._config.preprocessing.roi.h1, self._config.preprocessing.roi.h2
+            self._config.preprocessing.roi.h1,
+            self._config.preprocessing.roi.h2,
         )
         self._slice = (w_slice, h_slice)
         w_slice = slice(
-            self._config.preprocessing.pre_roi.w1, self._config.preprocessing.pre_roi.w2
+            self._config.preprocessing.pre_roi.w1,
+            self._config.preprocessing.pre_roi.w2,
         )
         h_slice = slice(
-            self._config.preprocessing.pre_roi.h1, self._config.preprocessing.pre_roi.h2
+            self._config.preprocessing.pre_roi.h1,
+            self._config.preprocessing.pre_roi.h2,
         )
         self._pre_slice = (w_slice, h_slice)
 
@@ -82,7 +86,11 @@ class Formatter:
         else:
             corr_img = sample_image
         M, C, _ = ip.orthorect_param(
-            corr_img, df_from, df_to, PPM=self._config.dataset.ppm, lonlat=False
+            corr_img,
+            df_from,
+            df_to,
+            PPM=self._config.dataset.ppm,
+            lonlat=False,
         )
         return (M, C)
 
@@ -97,7 +105,9 @@ class Formatter:
         image_center = (width / 2, height / 2)
         # getRotationMatrix2D needs coordinates in reverse
         # order (width, height) compared to shape
-        rot_mat = cv2.getRotationMatrix2D(image_center, self._rotation_angle, a)
+        rot_mat = cv2.getRotationMatrix2D(
+            image_center, self._rotation_angle, a
+        )
         # rotation calculates the cos and sin, taking absolutes of those.
         abs_cos = abs(rot_mat[0, 0])
         abs_sin = abs(rot_mat[0, 1])
@@ -133,7 +143,9 @@ class Formatter:
     def _rotate(self, image: np.ndarray) -> np.ndarray:
         if self._rotation_angle != 0:
             # rotate image with the new bounds and translated rotation matrix
-            rotated_mat = cv2.warpAffine(image, self._rotation_matrix, self._bound)
+            rotated_mat = cv2.warpAffine(
+                image, self._rotation_matrix, self._bound
+            )
             return rotated_mat
         return image
 
@@ -162,7 +174,9 @@ class Formatter:
         if gray:
             image = self._gray(image)
         if resize_factor is not None:
-            image = cv2.resize(image, (0, 0), fx=resize_factor, fy=resize_factor)
+            image = cv2.resize(
+                image, (0, 0), fx=resize_factor, fy=resize_factor
+            )
         return image
 
     def apply_image_enhancement(self, image: np.ndarray) -> np.ndarray:
@@ -207,7 +221,9 @@ class Formatter:
             )
 
         # apply orthorectification
-        image = ip.orthorect_trans(image, self._or_params[0], self._or_params[1])
+        image = ip.orthorect_trans(
+            image, self._or_params[0], self._or_params[1]
+        )
         self._shape = (image.shape[0], image.shape[1])
         # update rotation matrix such as the shape of the image changed
         self._rotation_matrix = self._get_rotation_matrix()
@@ -226,7 +242,9 @@ def main(config_path: str, video_identifier: str, save_image: bool):
     t3 = time.process_time()
     image = formatter.apply_distortion_correction(image)
     t4 = time.process_time()
-    image = formatter.apply_roi_extraction(image, resize_factor=config.stiv.resize_factor)
+    image = formatter.apply_roi_extraction(
+        image, resize_factor=config.stiv.resize_factor
+    )
     t5 = time.process_time()
     loader.end()
     t6 = time.process_time()
@@ -247,15 +265,24 @@ def main(config_path: str, video_identifier: str, save_image: bool):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("statio_name", help="Name of the station to be analyzed")
+    parser.add_argument(
+        "statio_name", help="Name of the station to be analyzed"
+    )
     parser.add_argument(
         "video_identifier", help="Index of the video of the json config file"
     )
     parser.add_argument(
-        "-s", "--save", help="Save images instead of showing", action="store_true"
+        "-s",
+        "--save",
+        help="Save images instead of showing",
+        action="store_true",
     )
     parser.add_argument(
-        "-p", "--path", help="Path to the config folder", type=str, default=FOLDER_PATH
+        "-p",
+        "--path",
+        help="Path to the config folder",
+        type=str,
+        default=FOLDER_PATH,
     )
 
     args = parser.parse_args()

@@ -21,7 +21,11 @@ def get_magnitude(kp1, kp2):
 
 def get_angle(kp1, kp2):
     """Get angle between two key points."""
-    return math.atan2(kp2.pt[1] - kp1.pt[1], kp2.pt[0] - kp1.pt[0]) * 180 / math.pi
+    return (
+        math.atan2(kp2.pt[1] - kp1.pt[1], kp2.pt[0] - kp1.pt[0])
+        * 180
+        / math.pi
+    )
 
 
 def _get_velocity(kp1, kp2, real_distance_pixel, time, fps):
@@ -64,7 +68,9 @@ def compute_stats(velocity, hist=False):
 class OTV:
     """Optical Tracking Image Velocimetry."""
 
-    def __init__(self, config_: Config, prev_gray: np.ndarray, debug=0) -> None:
+    def __init__(
+        self, config_: Config, prev_gray: np.ndarray, debug=0
+    ) -> None:
         root_config = config_.dict()
         config = config_.otv.dict()
         self._debug = debug
@@ -118,7 +124,9 @@ class OTV:
         self.prev_gray = prev_gray
 
     def _partial_filtering(self, kp1, kp2, max_distance):
-        magnitude = get_magnitude(kp1, kp2)  # only to limit the research window
+        magnitude = get_magnitude(
+            kp1, kp2
+        )  # only to limit the research window
         if magnitude > max_distance:
             return False
         angle = get_angle(kp1, kp2)
@@ -208,8 +216,12 @@ class OTV:
         while loader.has_images():
             # get current frame
             current_frame = loader.read()
-            current_frame = formatter.apply_distortion_correction(current_frame)
-            current_frame = formatter.apply_roi_extraction(current_frame, resize_factor=self.resize_factor)
+            current_frame = formatter.apply_distortion_correction(
+                current_frame
+            )
+            current_frame = formatter.apply_roi_extraction(
+                current_frame, resize_factor=self.resize_factor
+            )
             # current_frame = self._apply_mask(current_frame)
 
             # get features as a list of KeyPoints
@@ -249,7 +261,9 @@ class OTV:
                 # add predicted by Lucas-Kanade new keypoints
                 keypoints_predicted.clear()
                 for pt2 in pts2:
-                    keypoints_predicted.append(cv2.KeyPoint(pt2[0], pt2[1], 1.0))
+                    keypoints_predicted.append(
+                        cv2.KeyPoint(pt2[0], pt2[1], 1.0)
+                    )
 
                 max_distance = self._max_level * (2 * self._radius + 1)
                 max_distance /= self._resolution
@@ -306,7 +320,9 @@ class OTV:
                             velocity[loader.index].append(velocity_i)
                             angle[loader.index].append(angle_i)
                             distance[loader.index].append(
-                                velocity_i * (loader.index - time[i]) / loader.fps
+                                velocity_i
+                                * (loader.index - time[i])
+                                / loader.fps
                             )
 
                         continue
@@ -333,9 +349,14 @@ class OTV:
 
             if show_video:
                 if previous_frame is not None:
-                    color_frame = cv2.cvtColor(current_frame, cv2.COLOR_GRAY2RGB)
+                    color_frame = cv2.cvtColor(
+                        current_frame, cv2.COLOR_GRAY2RGB
+                    )
                     output = draw_vectors(
-                        color_frame, keypoints_predicted, keypoints_current, masks
+                        color_frame,
+                        keypoints_predicted,
+                        keypoints_current,
+                        masks,
                     )
                     # Scale to 512p as width
                     initial_shape = output.shape
@@ -443,7 +464,9 @@ def run_otv(
     if image is None:
         raise ValueError("No image found")
     prev_gray = formatter.apply_distortion_correction(image)
-    prev_gray = formatter.apply_roi_extraction(prev_gray, resize_factor=config.otv.resize_factor)
+    prev_gray = formatter.apply_roi_extraction(
+        prev_gray, resize_factor=config.otv.resize_factor
+    )
     otv = OTV(config, prev_gray, debug)
     return otv.run(loader, formatter, show_video), prev_gray
 
@@ -464,7 +487,10 @@ if __name__ == "__main__":
         "-d", "--debug", help="Activate debug mode", type=int, default=0
     )
     parser.add_argument(
-        "-v", "--video", action="store_true", help="Play video while processing"
+        "-v",
+        "--video",
+        action="store_true",
+        help="Play video while processing",
     )
     parser.add_argument(
         "-s",
