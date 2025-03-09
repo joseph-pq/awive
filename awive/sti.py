@@ -76,7 +76,7 @@ class STIV():
         while loader.has_images():
             image = loader.read()
             image = formatter.apply_distortion_correction(image)
-            image = formatter.apply_roi_extraction(image)
+            image = formatter.apply_roi_extraction(image, resize_factor=self.config.otv.resize_factor)
 
             for i, coordinates in enumerate(coordinates_list):
                 start = coordinates['start']

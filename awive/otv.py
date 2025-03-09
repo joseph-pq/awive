@@ -90,6 +90,8 @@ class OTV:
         )
         mask_path = config["mask_path"]
         self._regions = config["lines"]
+        self.lines_width = config_.otv.lines_width
+        self.resize_factor = config_.otv.resize_factor
         if len(mask_path) != 0:
             self._mask = cv2.imread(mask_path, 0) > 1
             self._mask = cv2.resize(
@@ -179,7 +181,9 @@ class OTV:
         angle = []
         distance = []
         path = []
-        traj_map = np.zeros((1200, 900))
+
+        # traj_map must have the size of the image after all preprocessing
+        traj_map = np.zeros_like(self.prev_gray)
 
         # update width and height if needed
         if loader.image_shape[0] < self._width:
@@ -205,7 +209,7 @@ class OTV:
             # get current frame
             current_frame = loader.read()
             current_frame = formatter.apply_distortion_correction(current_frame)
-            current_frame = formatter.apply_roi_extraction(current_frame)
+            current_frame = formatter.apply_roi_extraction(current_frame, resize_factor=self.resize_factor)
             # current_frame = self._apply_mask(current_frame)
 
             # get features as a list of KeyPoints
@@ -287,7 +291,7 @@ class OTV:
                             # subregion_trajectories[module_start] += 1
 
                             for r_idx, region in enumerate(self._regions):
-                                if abs(xx0 - region) < 15:
+                                if abs(xx0 - region) < self.lines_width:
                                     regions[r_idx].append(velocity_i)
 
                             # update storage
@@ -333,6 +337,10 @@ class OTV:
                     output = draw_vectors(
                         color_frame, keypoints_predicted, keypoints_current, masks
                     )
+                    # Scale to 512p as width
+                    initial_shape = output.shape
+                    height = int(512 * initial_shape[0] / initial_shape[1])
+                    output = cv2.resize(output, (512, height))
                     cv2.imshow("sparse optical flow", output)
                     if cv2.waitKey(10) & 0xFF == ord("q"):
                         break
@@ -435,7 +443,7 @@ def run_otv(
     if image is None:
         raise ValueError("No image found")
     prev_gray = formatter.apply_distortion_correction(image)
-    prev_gray = formatter.apply_roi_extraction(prev_gray)
+    prev_gray = formatter.apply_roi_extraction(prev_gray, resize_factor=config.otv.resize_factor)
     otv = OTV(config, prev_gray, debug)
     return otv.run(loader, formatter, show_video), prev_gray
 

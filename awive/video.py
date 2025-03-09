@@ -21,7 +21,8 @@ def play(
     time_delay=1,
     resize=False,
     wlcrop=None,
-    blur=True
+    blur=True,
+    resize_factor: float | None = None,
 ) -> None:
     """Plays a video."""
     i: int = 0
@@ -31,7 +32,7 @@ def play(
         if undistort:
             image = formatter.apply_distortion_correction(image)
         if roi:
-            image = formatter.apply_roi_extraction(image)
+            image = formatter.apply_roi_extraction(image, resize_factor=resize_factor)
         elif wlcrop is not None:
             image = image[wlcrop[0], wlcrop[1]]
         if blur:

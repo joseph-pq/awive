@@ -231,7 +231,7 @@ class Otv(ImageVelocimetry):
             current_frame = loader.read()
             current_frame = formatter.apply_distortion_correction(
                 current_frame)
-            current_frame = formatter.apply_roi_extraction(current_frame)
+            current_frame = formatter.apply_roi_extraction(current_frame, resize_factor=self.conf.resize_factor)
             # current_frame = self._apply_mask(current_frame)
 
             # get features as a list of KeyPoints

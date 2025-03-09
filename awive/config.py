@@ -106,6 +106,8 @@ class ConfigOtv(BaseModel):
     features: ConfigOtvFeatures
     lk: ConfigOtvLucasKanade
     lines: list[int]
+    lines_width: int
+    resize_factor: float | None = None
 
 
 class ConfigStivLine(BaseModel):
@@ -124,6 +126,7 @@ class ConfigStiv(BaseModel):
     ksize: int
     polar_filter_width: int
     lines: list[ConfigStivLine]
+    resize_factor: float | None = None
 
 
 class Config(BaseModel):
