@@ -1,4 +1,5 @@
 name: Python Ruff Check
+on: [push, pull_request]
 
 jobs:
   python-ruff-check:
