@@ -20,7 +20,7 @@ jobs:
       - name: Install the project
         run: |
           uv sync --all-extras --all-groups
-          uv python -m pip install ruff
+          uv pip install ruff
 
       - name: Run Ruff
         run: ruff check --output-format=github .
