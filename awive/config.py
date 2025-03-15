@@ -7,15 +7,19 @@ import numpy as np
 import functools
 import json
 from pathlib import Path
+import yaml
 
 
 class BaseModel(RawBaseModel):
     @staticmethod
     def from_fp(fp: Path):
         """Load config from json."""
-        if fp.suffix != ".json":
-            raise ValueError("File must be a json file")
-        return Config(**json.load(fp.open()))
+        if fp.suffix == ".json":
+            return Config(**json.load(fp.open()))
+        elif fp.suffix == ".yaml":
+            return Config(**yaml.safe_load(fp.open()))
+        else:
+            raise ValueError(f"File extension not supported: {fp.suffix}")
 
 
 class GroundTruth(BaseModel):
