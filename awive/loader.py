@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-from awive.config import ConfigDataset
+from awive.config import Dataset
 
 FOLDER_PATH = "/home/joseph/Documents/Thesis/Dataset/config"
 
@@ -19,7 +19,7 @@ FOLDER_PATH = "/home/joseph/Documents/Thesis/Dataset/config"
 class Loader(metaclass=abc.ABCMeta):
     """Abstract class of loader."""
 
-    def __init__(self, config: ConfigDataset) -> None:
+    def __init__(self, config: Dataset) -> None:
         """Initialize loader."""
         self._offset: int = config.image_number_offset
         self._index: int = 0
@@ -54,7 +54,7 @@ class Loader(metaclass=abc.ABCMeta):
 class ImageLoader(Loader):
     """Loader that loads images from a directory."""
 
-    def __init__(self, config: ConfigDataset) -> None:
+    def __init__(self, config: Dataset) -> None:
         """Initialize loader."""
         super().__init__(config)
         self._image_dataset = config.image_dataset
@@ -101,7 +101,7 @@ class ImageLoader(Loader):
 class VideoLoader(Loader):
     """Loader that loads from a video."""
 
-    def __init__(self, config: ConfigDataset) -> None:
+    def __init__(self, config: Dataset) -> None:
         """Initialize loader."""
         super().__init__(config)
 
@@ -148,7 +148,7 @@ class VideoLoader(Loader):
         self._cap.release()
 
 
-def make_loader(config: ConfigDataset):
+def make_loader(config: Dataset):
     """Make a loader based on config."""
     # check if the image_folder_path contains any jpg or png file
     for file in Path(config.image_dataset).iterdir():
@@ -165,7 +165,7 @@ def get_loader(config_path: str, video_identifier: str) -> Loader:
     :return video_loader: if the previous assumption is not true
     """
     # check if in image folder there are located the extracted images
-    config = ConfigDataset(
+    config = Dataset(
         **json.loads(Path(config_path).read_text())[video_identifier][
             "dataset"
         ]

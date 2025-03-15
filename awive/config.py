@@ -1,6 +1,6 @@
 """Configuration."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import json
 from pathlib import Path
 
@@ -46,7 +46,7 @@ class ConfigImageCorrection(BaseModel):
     f: float
 
 
-class ConfigPreProcessing(BaseModel):
+class PreProcessing(BaseModel):
     """Configurations pre-processing."""
 
     rotate_image: int
@@ -55,7 +55,7 @@ class ConfigPreProcessing(BaseModel):
     image_correction: ConfigImageCorrection
 
 
-class ConfigDataset(BaseModel):
+class Dataset(BaseModel):
     """Configuration dataset."""
 
     image_dataset: str
@@ -90,7 +90,7 @@ class ConfigOtvLucasKanade(BaseModel):
     min_eigen_threshold: float
 
 
-class ConfigOtv(BaseModel):
+class Otv(BaseModel):
     """Configuration OTV."""
 
     mask_path: str
@@ -117,7 +117,7 @@ class ConfigStivLine(BaseModel):
     end: list[int]
 
 
-class ConfigStiv(BaseModel):
+class Stiv(BaseModel):
     """Configuration STIV."""
 
     window_shape: list[int]
@@ -132,10 +132,10 @@ class ConfigStiv(BaseModel):
 class Config(BaseModel):
     """Config class for awive."""
 
-    dataset: ConfigDataset
-    otv: ConfigOtv
-    stiv: ConfigStiv
-    preprocessing: ConfigPreProcessing
+    dataset: Dataset
+    otv: Otv
+    stiv: Stiv
+    preprocessing: PreProcessing
 
     @staticmethod
     def from_json(file_path: str, video_id: str | None = None):
