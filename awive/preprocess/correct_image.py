@@ -87,7 +87,7 @@ class Formatter:
             )
         else:
             corr_img = sample_image
-        M, C, _ = ip.build_orthorect_params(
+        M, C = ip.build_orthorect_params(
             corr_img,
             pixels_coordinates,
             meters_coordinates,

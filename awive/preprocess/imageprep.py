@@ -4,6 +4,27 @@ import itertools
 
 import cv2
 import numpy as np
+from numpy.typing import NDArray
+
+
+def crop_to_gcp_area(
+    img: np.ndarray, pixels_coordinates: list[list[int]]
+) -> tuple[np.ndarray, list[list[int]]]:
+    """Crops the image to the bounding box of the given pixel coordinates.
+
+    Args:
+        img: Original image.
+        pixels_coordinates: List of (x, y) pixel coordinates of GCPs.
+
+    Returns:
+        Cropped image and updated pixel coordinates relative to the cropped area.
+    """
+    x_min, y_min = np.min(pixels_coordinates, axis=0)
+    x_max, y_max = np.max(pixels_coordinates, axis=0)
+    cropped_img = img[y_min:y_max, x_min:x_max]
+    updated_coords = [[x - x_min, y - y_min] for x, y in pixels_coordinates]
+
+    return cropped_img, updated_coords
 
 
 def apply_lens_correction(
@@ -71,7 +92,7 @@ def build_orthorect_params(
     meters_coordinates: list[list[float]],
     ppm: float = 100.0,
     lonlat: bool = False,
-) -> tuple:
+) -> tuple[NDArray, NDArray]:
     """Image orthorectification parameters based on 4 GCPs.
     GCPs need to be at water level.
 
@@ -85,6 +106,7 @@ def build_orthorect_params(
     Returns:
         Transformation matrix, coordinates of image corners, and original coordinates of the GCPs.
     """
+    # img, pixels_coordinates = crop_to_gcp_area(img, pixels_coordinates)
     # if lonlat:
     #     meters_coordinates = xy_coord(meters_coordinates)
 
@@ -94,7 +116,7 @@ def build_orthorect_params(
     pts2 = np.array(meters_coordinates, dtype=np.float32) * ppm
 
     # define transformation matrix based on GCPs
-    m = cv2.getPerspectiveTransform(pts1, pts2)
+    m = cv2.getPerspectiveTransform(pts1, pts2)  # type: ignore
 
     # find locations of transformed image corners
     # height, width, __ = img.shape
@@ -119,7 +141,8 @@ def build_orthorect_params(
     )  # it is required becuase indexing change dtypes
     m_new = cv2.getPerspectiveTransform(c_old, c_new)
 
-    return m_new, c_new, meters_coordinates
+    # return m_new, c_new, img
+    return m_new, c_new
 
 
 def apply_orthorec(
@@ -137,8 +160,6 @@ def apply_orthorec(
     """
 
     # define corrected image dimensions based on C
-    print(f"{c=}")
-    print(f"{m=}")
     cols = int(np.ceil(max(c[:, 0])))
     rows = int(np.ceil(max(c[:, 1])))
 
@@ -223,7 +244,7 @@ if __name__ == "__main__":
 
     # pass to grayscale
     img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    m, c, meters = build_orthorect_params(
+    m, c = build_orthorect_params(
         img, pixels_coordinates, meters_coordinates, ppm=50
     )
     ortho_img = apply_orthorec(img, m, c)
