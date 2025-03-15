@@ -13,6 +13,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "dvc-gdrive>=3.0.1",
     "ipython>=8.18.1",
     "matplotlib>=3.9.4",
     "opencv-stubs>=0.0.11",
