@@ -65,14 +65,12 @@ class Formatter:
         self._pre_slice = (w_slice, h_slice)
 
     def _get_orthorectification_params(
-        self, sample_image: np.ndarray, reduce=None
+        self, sample_image: NDArray, reduce: NDArray | None = None
     ) -> tuple[NDArray, NDArray]:
         pixels_coordinates = self._config.dataset.gcp.pixels_coordinates
         meters_coordinates = self._config.dataset.gcp.meters_coordinates
         if reduce is not None:
-            for i, _ in enumerate(pixels_coordinates):
-                pixels_coordinates[i][0] = pixels_coordinates[i][0] - reduce[0]
-                pixels_coordinates[i][1] = pixels_coordinates[i][1] - reduce[1]
+            pixels_coordinates = pixels_coordinates - reduce
         if self._config.preprocessing.image_correction.apply:
             corr_img = ip.apply_lens_correction(
                 sample_image,
@@ -187,12 +185,16 @@ class Formatter:
 
     def _crop_using_refs(self, image: np.ndarray) -> np.ndarray:
         image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        x_min, y_min = np.min(self._config.dataset.gcp.pixels_coordinates, axis=0)
-        x_max, y_max = np.max(self._config.dataset.gcp.pixels_coordinates, axis=0)
+        x_min, y_min = np.min(
+            self._config.dataset.gcp.pixels_coordinates, axis=0
+        )
+        x_max, y_max = np.max(
+            self._config.dataset.gcp.pixels_coordinates, axis=0
+        )
         image = image[y_min:y_max, x_min:x_max]
         self._shape = (image.shape[0], image.shape[1])
         self._or_params = self._get_orthorectification_params(
-            image, reduce=(y_min, x_min)
+            image, reduce=np.array([y_min, x_min])
         )
         self._rotation_matrix = self._get_rotation_matrix()
         return image
