@@ -6,7 +6,7 @@ frames in a defined directory path.
 
 """
 
-import argparse
+from pathlib import Path
 import logging
 import time
 from typing import Any
@@ -18,9 +18,8 @@ from numpy.typing import NDArray
 import awive.preprocess.imageprep as ip
 from awive.config import Config
 from awive.exceptions import VideoSourceError
-from awive.loader import get_loader, make_loader
+from awive.loader import make_loader
 
-FOLDER_PATH = "/home/joseph/Documents/Thesis/Dataset/config"
 LOG = logging.getLogger(__name__)
 
 
@@ -253,17 +252,16 @@ class Formatter:
         return image
 
 
-def main(config_path: str, video_identifier: str, save_image: bool):
+def main(config_fp: Path, save_image: bool):
     """Demonstrate basic example of video correction.
 
     Args:
         config_path: Path to the configuration file.
-        video_identifier: Identifier for the video in the configuration.
         save_image: Whether to save the corrected image or display it.
     """
-    config: Config = Config.from_json(config_path, video_identifier)
+    config: Config = Config.from_fp(config_fp)
     t0 = time.process_time()
-    loader = get_loader(config_path, video_identifier)
+    loader = make_loader(config.dataset)
     t1 = time.process_time()
     formatter = Formatter(config)
     t2 = time.process_time()
@@ -296,31 +294,5 @@ def main(config_path: str, video_identifier: str, save_image: bool):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "statio_name", help="Name of the station to be analyzed"
-    )
-    parser.add_argument(
-        "video_identifier", help="Index of the video of the json config file"
-    )
-    parser.add_argument(
-        "-s",
-        "--save",
-        help="Save images instead of showing",
-        action="store_true",
-    )
-    parser.add_argument(
-        "-p",
-        "--path",
-        help="Path to the config folder",
-        type=str,
-        default=FOLDER_PATH,
-    )
-
-    args = parser.parse_args()
-    CONFIG_PATH = f"{args.path}/{args.statio_name}.json"
-    main(
-        config_path=CONFIG_PATH,
-        video_identifier=args.video_identifier,
-        save_image=args.save,
-    )
+    import typer
+    typer.run(main)

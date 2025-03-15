@@ -2,7 +2,6 @@
 
 import abc
 import argparse
-import json
 import os
 from pathlib import Path
 from typing import Iterable
@@ -11,7 +10,7 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-from awive.config import Dataset
+from awive.config import Dataset as DatasetConfig, Config
 
 FOLDER_PATH = "/home/joseph/Documents/Thesis/Dataset/config"
 
@@ -23,7 +22,7 @@ class Loader(metaclass=abc.ABCMeta):
         config: Configuration for the dataset.
     """
 
-    def __init__(self, config: Dataset) -> None:
+    def __init__(self, config: DatasetConfig) -> None:
         self._offset: int = config.image_number_offset
         self._index: int = 0
         self.config = config
@@ -73,7 +72,7 @@ class Loader(metaclass=abc.ABCMeta):
 class ImageLoader(Loader):
     """Loader that loads images from a directory."""
 
-    def __init__(self, config: Dataset) -> None:
+    def __init__(self, config: DatasetConfig) -> None:
         """Initialize loader."""
         super().__init__(config)
         self._image_dataset = config.image_dataset
@@ -124,7 +123,7 @@ class ImageLoader(Loader):
 class VideoLoader(Loader):
     """Loader that loads from a video."""
 
-    def __init__(self, config: Dataset) -> None:
+    def __init__(self, config: DatasetConfig) -> None:
         """Initialize loader."""
         super().__init__(config)
 
@@ -171,7 +170,7 @@ class VideoLoader(Loader):
         self._cap.release()
 
 
-def make_loader(config: Dataset):
+def make_loader(config: DatasetConfig):
     """Make a loader based on config."""
     # check if the image_folder_path contains any jpg or png file
     for file in Path(config.image_dataset).iterdir():
@@ -181,25 +180,19 @@ def make_loader(config: Dataset):
     return VideoLoader(config)
 
 
-def get_loader(config_path: str, video_identifier: str) -> Loader:
+def get_loader(config_fp: Path) -> Loader:
     """Return a ImageLoader or VideoLoader class.
 
     Args:
         config_path: Path to the config file.
         video_identifier: Identifier of the video in the config file.
     """
-    # check if in image folder there are located the extracted images
-    config = Dataset(
-        **json.loads(Path(config_path).read_text())[video_identifier][
-            "dataset"
-        ]
-    )
-    return make_loader(config)
+    return make_loader(Config.from_fp(config_fp).dataset)
 
 
-def main(config_path: str, video_identifier: str, save_image: bool):
+def main(config_path: Path, video_identifier: str, save_image: bool):
     """Execute a basic example of loader."""
-    loader = get_loader(config_path, video_identifier)
+    loader = get_loader(config_path)
     image = loader.read()
     if image is None:
         print("No image found")
@@ -237,7 +230,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    CONFIG_PATH = f"{args.path}/{args.statio_name}.json"
+    CONFIG_PATH = Path(f"{args.path}/{args.statio_name}.json")
     main(
         config_path=CONFIG_PATH,
         video_identifier=args.video_identifier,

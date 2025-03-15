@@ -1,5 +1,6 @@
 """Space Time Image Velocimetry."""
 
+from typing import Path
 import argparse
 import json
 import math
@@ -61,12 +62,12 @@ class STIV:
         velocity = math.tan(angle) * self._fps / self._ppm
         return velocity
 
-    def _generate_st_images(self, config_path, video_identifier):
+    def _generate_st_images(self, config_path: Path):
         # generate space time images
-        loader = get_loader(config_path, video_identifier)
+        loader = get_loader(config_path)
         if self._debug >= 1:
             print("number of frames:", loader.total_frames)
-        formatter = Formatter(config_path, video_identifier)
+        formatter = Formatter(config_path)
         self._fps = loader.fps
 
         # initialize set of sti images

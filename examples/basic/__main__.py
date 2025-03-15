@@ -12,7 +12,6 @@ from awive.loader import Loader, get_loader
 
 CONFIG_PATH = "examples/basic/config.json"
 VIDEO_PATH = "examples/basic/AlpineStabilised.avi"
-VIDEO_ID = "basic"
 FILE_ID = "1JreGYQEYUB4DkIk-MkE4n_-2RzSb0W27"
 
 
@@ -41,9 +40,9 @@ def download_file(file_id: str, local_filename: str) -> str:
     return local_filename
 
 
-def basic_plot_image(config_path: str, video_identifier: str) -> None:
+def basic_plot_image(config_path: Path) -> None:
     """Use basic loader functions to read an image."""
-    loader: Loader = get_loader(config_path, video_identifier)
+    loader: Loader = get_loader(config_path)
     if not loader.has_images():
         raise ValueError("The video does not have images")
     image: NDArray[np.uint8] | None = loader.read()
@@ -58,4 +57,4 @@ def basic_plot_image(config_path: str, video_identifier: str) -> None:
 if __name__ == "__main__":
     if not Path(VIDEO_PATH).exists():
         download_file(FILE_ID, VIDEO_PATH)
-    basic_plot_image(CONFIG_PATH, VIDEO_ID)
+    basic_plot_image(Path(CONFIG_PATH))

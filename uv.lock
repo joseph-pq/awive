@@ -255,6 +255,7 @@ dev = [
     { name = "pyqt5" },
     { name = "requests" },
     { name = "tk" },
+    { name = "typer" },
     { name = "types-requests" },
 ]
 docs = [
@@ -284,6 +285,7 @@ dev = [
     { name = "pyqt5", specifier = ">=5.15.11" },
     { name = "requests", specifier = ">=2.31.0" },
     { name = "tk", specifier = ">=0.1.0" },
+    { name = "typer", specifier = ">=0.15.2" },
     { name = "types-requests", specifier = ">=2.31.0.20240125" },
 ]
 docs = [

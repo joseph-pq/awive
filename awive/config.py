@@ -1,12 +1,21 @@
 """Configuration."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel as RawBaseModel, Field
 from numpy.typing import NDArray
 from typing import Any
 import numpy as np
 import functools
 import json
 from pathlib import Path
+
+
+class BaseModel(RawBaseModel):
+    @staticmethod
+    def from_fp(fp: Path):
+        """Load config from json."""
+        if fp.suffix != ".json":
+            raise ValueError("File must be a json file")
+        return Config(**json.load(fp.open()))
 
 
 class GroundTruth(BaseModel):
@@ -20,10 +29,10 @@ class ConfigGcp(BaseModel):
     """Configurations GCP."""
 
     apply: bool
-    pixels: list[list[int]] = Field(
+    pixels: list[tuple[int, int]] = Field(
         ..., alias="at least four coordinates: [[x1,y2], ..., [x4,y4]]"
     )
-    meters: list[list[float]] = Field(
+    meters: list[tuple[float, float]] = Field(
         default_factory=lambda: [],
         alias="at least four coordinates: [[x1,y2], ..., [x4,y4]]",
     )
@@ -42,15 +51,20 @@ class ConfigGcp(BaseModel):
         """Return meters coordinates."""
         return np.array(self.meters)
 
-    def calculate_meters(self, distances: dict[tuple[int, int], float]) -> list[list[float]]:
+    def calculate_meters(
+        self, distances: dict[tuple[int, int], float]
+    ) -> list[tuple[float, float]]:
         def di(i: int, j: int):
             return distances.get((i, j)) or distances.get((j, i))
-        d = np.array([
-            [0, di(0, 1), di(0, 2), di(0, 3)],
-            [di(1, 0), 0, di(1, 2), di(1, 3)],
-            [di(2, 0), di(2, 1), 0, di(2, 3)],
-            [di(3, 0), di(3, 1), di(3, 2), 0],
-        ])
+
+        d = np.array(
+            [
+                [0, di(0, 1), di(0, 2), di(0, 3)],
+                [di(1, 0), 0, di(1, 2), di(1, 3)],
+                [di(2, 0), di(2, 1), 0, di(2, 3)],
+                [di(3, 0), di(3, 1), di(3, 2), 0],
+            ]
+        )
         # check if nans are present
         if np.isnan(d).any():
             raise ValueError("Not all distances between GCPs are available")
@@ -76,18 +90,20 @@ class ConfigGcp(BaseModel):
         x[:, 0] *= -1
         return x.tolist()
 
-
-
     def model_post_init(self, __context: Any):
         if len(self.pixels) < 4:
             raise ValueError("at least four coordinates are required")
         if len(self.meters) == 0 and self.distances is None:
             raise ValueError("meters or distances must be provided")
         if len(self.meters) == 0 and self.distances is not None:
-            if len(self.distances) != (len(self.pixels) * (len(self.pixels) - 1) / 2):
+            if len(self.distances) != (
+                len(self.pixels) * (len(self.pixels) - 1) / 2
+            ):
                 self.meters = self.calculate_meters(self.distances)
             else:
-                raise ValueError("distances must have the correct number of elements")
+                raise ValueError(
+                    "distances must have the correct number of elements"
+                )
 
         if len(self.pixels) != len(self.meters):
             raise ValueError("pixels and meters must have the same length")
@@ -189,6 +205,15 @@ class Stiv(BaseModel):
     resize_factor: float | None = None
 
 
+class WaterLevel(BaseModel):
+    """Configuration Water Level."""
+
+    buffer_length: int
+    roi: tuple[tuple[int, int], tuple[int, int]]
+    roi2: tuple[tuple[int, int], tuple[int, int]]
+    kernel_size: int
+
+
 class Config(BaseModel):
     """Config class for awive."""
 
@@ -196,10 +221,4 @@ class Config(BaseModel):
     otv: Otv
     stiv: Stiv
     preprocessing: PreProcessing
-
-    @staticmethod
-    def from_json(file_path: str, video_id: str | None = None):
-        """Load config from json."""
-        if video_id is None:
-            return Config(**json.load(Path(file_path).open()))
-        return Config(**json.load(Path(file_path).open())[video_id])
+    water_level: WaterLevel | None = None

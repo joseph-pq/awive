@@ -1,13 +1,14 @@
 """Play  a video."""
 
 import argparse
+from pathlib import Path
 import json
 
 import cv2
 import numpy as np
 
 from awive.config import Config
-from awive.loader import Loader, get_loader
+from awive.loader import Loader, make_loader
 from awive.preprocess.correct_image import Formatter
 
 FOLDER_PATH = "/home/joseph/Documents/Thesis/Dataset/config"
@@ -58,7 +59,7 @@ def play(
 
 
 def main(
-    config_path: str,
+    config_fp: Path,
     video_identifier: str,
     undistort=True,
     roi=True,
@@ -68,11 +69,11 @@ def main(
     blur=True,
 ) -> None:
     """Read configurations and play video."""
-    loader = get_loader(config_path, video_identifier)
-    config = Config.from_json(config_path)
+    config = Config.from_fp(config_fp)
+    loader = make_loader(config.dataset)
     formatter = Formatter(config)
     if wlcrop:
-        with open(config_path) as json_file:
+        with open(config_fp) as json_file:
             config = json.load(json_file)[video_identifier]["water_level"]
         roi2 = config["roi"]
         wr0 = (roi2[0][0], roi2[1][0])
@@ -122,7 +123,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     main(
-        config_path=f"{FOLDER_PATH}/{args.statio_name}.json",
+        config_fp=Path(f"{FOLDER_PATH}/{args.statio_name}.json"),
         video_identifier=args.video_identifier,
         undistort=args.undistort,
         roi=args.roi,

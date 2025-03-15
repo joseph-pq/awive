@@ -21,6 +21,7 @@ dev = [
     "pyqt5>=5.15.11",
     "requests>=2.31.0",
     "tk>=0.1.0",
+    "typer>=0.15.2",
     "types-requests>=2.31.0.20240125",
 ]
 docs = [

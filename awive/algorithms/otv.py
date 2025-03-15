@@ -72,8 +72,8 @@ class OTV:
     def __init__(
         self, config_: Config, prev_gray: np.ndarray, debug=0
     ) -> None:
-        root_config = config_.dict()
-        config = config_.otv.dict()
+        root_config = config_.model_dump()
+        config = config_.otv.model_dump()
         self._debug = debug
         self._partial_max_angle = config["partial_max_angle"]
         self._partial_min_angle = config["partial_min_angle"]
@@ -360,12 +360,12 @@ class OTV:
                     color_frame = cv2.cvtColor(
                         current_frame, cv2.COLOR_GRAY2RGB
                     )
-                    output = draw_vectors(
+                    output: NDArray[np.float32] = draw_vectors(
                         color_frame,
                         keypoints_predicted,
                         keypoints_current,
                         masks,
-                    )
+                    ).astype(np.float32)
                     # Scale to 512p as width
                     initial_shape = output.shape
                     height = int(512 * initial_shape[0] / initial_shape[1])
@@ -426,11 +426,9 @@ def draw_vectors(image, new_list, old_list, masks):
     # create new mask
     mask = np.zeros(image.shape, dtype=np.uint8)
     for new, old in zip(new_list, old_list):
-        # TODO: Perhaps there is a more efficient way to transform this to a
-        # numpy array
-        new_pt = np.array([int(new.pt[0]), int(new.pt[1])])
-        old_pt = np.array([int(old.pt[0]), int(old.pt[1])])
-        mask = cv2.line(mask, new_pt.ravel(), old_pt.ravel(), color, thick)
+        new_pt = (int(new.pt[0]), int(new.pt[1]))
+        old_pt = (int(old.pt[0]), int(old.pt[1]))
+        mask = cv2.line(mask, new_pt, old_pt, color, thick)
 
     # update masks list
     masks.append(mask)
@@ -448,8 +446,7 @@ def draw_vectors(image, new_list, old_list, masks):
 
 
 def run_otv(
-    config_path: str,
-    video_identifier: str,
+    config_path: Path,
     show_video=False,
     debug=0,
 ) -> tuple[dict[str, dict[str, float]], np.ndarray | None]:
@@ -464,7 +461,7 @@ def run_otv(
         6. Crop
         7. Convert to gray scale
     """
-    config = Config.from_json(config_path, video_identifier)
+    config = Config.from_fp(config_path)
     loader: Loader = make_loader(config.dataset)
     formatter = Formatter(config)
     loader.has_images()
@@ -509,7 +506,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     velocities, image = run_otv(
         config_path=args.config,
-        video_identifier=str(args.video_identifier),
         show_video=args.video,
         debug=args.debug,
     )
