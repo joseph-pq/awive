@@ -44,25 +44,18 @@ class Formatter:
 
         self._rotation_angle = self._config.preprocessing.rotate_image
         self._rotation_matrix = self._get_rotation_matrix()
-
-        w_slice = slice(
-            self._config.preprocessing.roi.w1,
-            self._config.preprocessing.roi.w2,
+        self._slice = tuple(
+            map(
+                lambda x: slice(x[0], x[1]),
+                zip(*self._config.preprocessing.roi),
+            )
         )
-        h_slice = slice(
-            self._config.preprocessing.roi.h1,
-            self._config.preprocessing.roi.h2,
+        self._pre_slice = tuple(
+            map(
+                lambda x: slice(x[0], x[1]),
+                zip(*self._config.preprocessing.pre_roi),
+            )
         )
-        self._slice = (w_slice, h_slice)
-        w_slice = slice(
-            self._config.preprocessing.pre_roi.w1,
-            self._config.preprocessing.pre_roi.w2,
-        )
-        h_slice = slice(
-            self._config.preprocessing.pre_roi.h1,
-            self._config.preprocessing.pre_roi.h2,
-        )
-        self._pre_slice = (w_slice, h_slice)
 
     def _get_orthorectification_params(
         self, sample_image: NDArray, reduce: NDArray | None = None

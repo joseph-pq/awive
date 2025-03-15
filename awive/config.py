@@ -93,16 +93,7 @@ class ConfigGcp(BaseModel):
             raise ValueError("pixels and meters must have the same length")
 
 
-class ConfigRoi(BaseModel):
-    """Configurations ROI."""
-
-    h1: int
-    h2: int
-    w1: int
-    w2: int
-
-
-class ConfigImageCorrection(BaseModel):
+class ImageCorrection(BaseModel):
     """Configuration Image Correction."""
 
     apply: bool
@@ -114,10 +105,14 @@ class ConfigImageCorrection(BaseModel):
 class PreProcessing(BaseModel):
     """Configurations pre-processing."""
 
-    rotate_image: int
-    pre_roi: ConfigRoi
-    roi: ConfigRoi
-    image_correction: ConfigImageCorrection
+    rotate_image: int = Field(0, description="degrees")
+    pre_roi: tuple[tuple[int, int], tuple[int, int]] = Field(
+        ..., description="((x1,y1), (x2,y2))"
+    )
+    roi: tuple[tuple[int, int], tuple[int, int]] = Field(
+        ..., description="((x1,y1), (x2,y2))"
+    )
+    image_correction: ImageCorrection
 
 
 class Dataset(BaseModel):
