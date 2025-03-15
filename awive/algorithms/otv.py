@@ -197,10 +197,8 @@ class OTV:
         traj_map = np.zeros_like(self.prev_gray)
 
         # update width and height if needed
-        if loader.image_shape[0] < self._width:
-            self._width = loader.image_shape[0]
-        if loader.image_shape[1] < self._height:
-            self._height = loader.image_shape[1]
+        self._width = min(loader.width, self._width)
+        self._height = min(loader.height, self._height)
 
         # subregion_velocity = self._init_subregion_list(2, self._width)
         # subregion_trajectories = self._init_subregion_list(1, self._width)

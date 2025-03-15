@@ -31,13 +31,14 @@ class Loader(metaclass=abc.ABCMeta):
         self.total_frames = 0
 
     @property
-    def image_shape(self) -> tuple[int, int]:
-        """Get the shape of the images.
+    @abc.abstractmethod
+    def width(self) -> int:
+        ...
 
-        Returns:
-            A tuple containing the width and height of the images.
-        """
-        return (self.config.width, self.config.height)
+    @property
+    @abc.abstractmethod
+    def height(self) -> int:
+        ...
 
     @property
     def index(self) -> int:
@@ -79,6 +80,21 @@ class ImageLoader(Loader):
         self._prefix = config.image_path_prefix
         self._digits = config.image_path_digits
         self._image_number = len(os.listdir(self._image_dataset))
+        # Read first image
+        img = self.read()
+        if img is None:
+            raise FileNotFoundError(f"Image not found: {self._path(self._index)}")
+        self.set_index(0)  # Reset index
+        self._width = img.shape[1]
+        self._height = img.shape[0]
+
+    @property
+    def width(self) -> int:
+        return self._width
+    @property
+    def height(self) -> int:
+        return self._height
+
 
     def has_images(self) -> bool:
         """Check if the source contains one more frame."""
@@ -139,13 +155,21 @@ class VideoLoader(Loader):
         property_id: int = int(cv2.CAP_PROP_FRAME_COUNT)
         self.total_frames = int(cv2.VideoCapture.get(cap, property_id)) + 1
         self.fps = cap.get(cv2.CAP_PROP_FPS)
-        self.width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        self._width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self._height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
         # Skip offset
         for _ in range(self._offset + 1):
             if self.has_images():
                 self.read()
+
+    @property
+    def width(self) -> int:
+        return self._width
+
+    @property
+    def height(self) -> int:
+        return self._height
 
     def has_images(self):
         """Check if the source contains one more frame."""

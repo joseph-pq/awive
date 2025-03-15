@@ -143,8 +143,6 @@ class Dataset(BaseModel):
     image_path_prefix: str
     image_path_digits: int
     video_path: str
-    width: int
-    height: int
     ppm: int
     gcp: ConfigGcp
 
