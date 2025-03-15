@@ -88,8 +88,8 @@ def apply_lens_correction(
 
 def build_orthorect_params(
     img: np.ndarray,
-    pixels_coordinates: list[list[int]],
-    meters_coordinates: list[list[float]],
+    pixels_coordinates: NDArray,
+    meters_coordinates: NDArray,
     ppm: float = 100.0,
     lonlat: bool = False,
 ) -> tuple[NDArray, NDArray]:
@@ -104,7 +104,7 @@ def build_orthorect_params(
         lonlat: Convert longitudes/latitudes to meters.
 
     Returns:
-        Transformation matrix, coordinates of image corners, and original coordinates of the GCPs.
+        Transformation matrix, coordinates of image corners
     """
     # img, pixels_coordinates = crop_to_gcp_area(img, pixels_coordinates)
     # if lonlat:
@@ -245,7 +245,7 @@ if __name__ == "__main__":
     # pass to grayscale
     img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     m, c = build_orthorect_params(
-        img, pixels_coordinates, meters_coordinates, ppm=50
+        img, np.array(pixels_coordinates), np.array(meters_coordinates), ppm=50
     )
     ortho_img = apply_orthorec(img, m, c)
     print(f"{ortho_img.shape=}")

@@ -1,15 +1,11 @@
 """Configuration."""
 
 from pydantic import BaseModel, Field
+from numpy.typing import NDArray
+import numpy as np
+import functools
 import json
 from pathlib import Path
-
-
-class Position(BaseModel):
-    """Pixels or meters."""
-
-    x: list[int | float]
-    y: list[int | float]
 
 
 class GroundTruth(BaseModel):
@@ -23,9 +19,23 @@ class ConfigGcp(BaseModel):
     """Configurations GCP."""
 
     apply: bool
-    pixels: Position
-    meters: Position
+    pixels: list[list[int]] = Field(
+        ..., alias="at least four coordinates: [[x1,y2], ..., [x4,y4]]"
+    )
+    meters: list[list[float]] = Field(
+        ..., alias="at least four coordinates: [[x1,y2], ..., [x4,y4]]"
+    )
     ground_truth: list[GroundTruth]
+
+    @functools.cached_property
+    def pixels_coordinates(self) -> NDArray:
+        """Return pixel coordinates."""
+        return np.array(self.pixels)
+
+    @functools.cached_property
+    def meters_coordinates(self) -> NDArray:
+        """Return meters coordinates."""
+        return np.array(self.meters)
 
 
 class ConfigRoi(BaseModel):

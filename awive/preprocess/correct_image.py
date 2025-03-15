@@ -66,18 +66,13 @@ class Formatter:
 
     def _get_orthorectification_params(
         self, sample_image: np.ndarray, reduce=None
-    ) -> tuple[Any, NDArray]:
-        # FIX: This is a temporary fix. I shouldn't be converting to dictionary
-        x: dict[str, list] = self._config.dataset.gcp.pixels.model_dump()
-        pixels_coordinates: list[list[int]] = list(map(list, zip(*[(v) for _, v in x.items()])))
+    ) -> tuple[NDArray, NDArray]:
+        pixels_coordinates = self._config.dataset.gcp.pixels_coordinates
+        meters_coordinates = self._config.dataset.gcp.meters_coordinates
         if reduce is not None:
             for i, _ in enumerate(pixels_coordinates):
                 pixels_coordinates[i][0] = pixels_coordinates[i][0] - reduce[0]
                 pixels_coordinates[i][1] = pixels_coordinates[i][1] - reduce[1]
-
-        # FIX: This is a temporary fix. I shouldn't be converting to dictionary
-        x = self._config.dataset.gcp.meters.model_dump()
-        meters_coordinates: list[list[int]] = list(map(list, zip(*[(v) for _, v in x.items()])))
         if self._config.preprocessing.image_correction.apply:
             corr_img = ip.apply_lens_correction(
                 sample_image,
@@ -87,14 +82,14 @@ class Formatter:
             )
         else:
             corr_img = sample_image
-        M, C = ip.build_orthorect_params(
+        m, c = ip.build_orthorect_params(
             corr_img,
             pixels_coordinates,
             meters_coordinates,
             ppm=self._config.dataset.ppm,
             lonlat=False,
         )
-        return (M, C)
+        return m, c
 
     def _get_rotation_matrix(self):
         """Rotate matrix.
@@ -192,14 +187,12 @@ class Formatter:
 
     def _crop_using_refs(self, image: np.ndarray) -> np.ndarray:
         image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        xs = self._config.dataset.gcp.pixels.y
-        ys = self._config.dataset.gcp.pixels.x
-        xslice = slice(min(xs), max(xs) + 1)
-        yslice = slice(min(ys), max(ys) + 1)
-        image = image[xslice, yslice]
+        x_min, y_min = np.min(self._config.dataset.gcp.pixels_coordinates, axis=0)
+        x_max, y_max = np.max(self._config.dataset.gcp.pixels_coordinates, axis=0)
+        image = image[y_min:y_max, x_min:x_max]
         self._shape = (image.shape[0], image.shape[1])
         self._or_params = self._get_orthorectification_params(
-            image, reduce=(min(ys), min(xs))
+            image, reduce=(y_min, x_min)
         )
         self._rotation_matrix = self._get_rotation_matrix()
         return image
