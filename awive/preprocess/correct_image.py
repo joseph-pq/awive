@@ -19,6 +19,7 @@ import awive.preprocess.imageprep as ip
 from awive.config import Config
 from awive.exceptions import VideoSourceError
 from awive.loader import make_loader
+from awive.tools import imshow
 
 LOG = logging.getLogger(__name__)
 
@@ -252,7 +253,7 @@ class Formatter:
         return image
 
 
-def main(config_fp: Path, save_image: bool):
+def main(config_fp: Path, save_image: bool = False) -> None:
     """Demonstrate basic example of video correction.
 
     Args:
@@ -288,11 +289,10 @@ def main(config_fp: Path, save_image: bool):
     if save_image:
         cv2.imwrite("tmp.jpg", image)
     else:
-        cv2.imshow("image", cv2.resize(image, (1000, 1000)))
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        imshow(image)
 
 
 if __name__ == "__main__":
     import typer
+
     typer.run(main)

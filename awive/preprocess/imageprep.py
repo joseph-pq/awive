@@ -5,6 +5,7 @@ import itertools
 import cv2
 import numpy as np
 from numpy.typing import NDArray
+from awive.tools import imshow
 
 
 def crop_to_gcp_area(
@@ -249,14 +250,4 @@ if __name__ == "__main__":
     )
     ortho_img = apply_orthorec(img, m, c)
     print(f"{ortho_img.shape=}")
-    if ortho_img.shape[0] > ortho_img.shape[1]:
-        new_height = 1024
-        new_width = int(ortho_img.shape[1] / ortho_img.shape[0] * new_height)
-    else:
-        new_width = 1024
-        new_height = int(ortho_img.shape[0] / ortho_img.shape[1] * new_width)
-    ortho_img = cv2.resize(ortho_img, (new_width, new_height))
-
-    cv2.imshow("Orthorectified image", ortho_img)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    imshow(ortho_img, "Orthorectified image")
