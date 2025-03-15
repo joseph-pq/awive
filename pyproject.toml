@@ -18,7 +18,9 @@ dev = [
     "matplotlib>=3.9.4",
     "opencv-stubs>=0.0.11",
     "pyfzf>=0.3.1",
+    "pyqt5>=5.15.11",
     "requests>=2.31.0",
+    "tk>=0.1.0",
     "types-requests>=2.31.0.20240125",
 ]
 docs = [

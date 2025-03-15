@@ -68,18 +68,18 @@ class Formatter:
         self, sample_image: np.ndarray, reduce=None
     ) -> tuple[Any, NDArray]:
         # FIX: This is a temporary fix. I shouldn't be converting to dictionary
-        x = self._config.dataset.gcp.pixels.dict()
-        df_from = list(map(list, zip(*[(v) for _, v in x.items()])))
+        x: dict[str, list] = self._config.dataset.gcp.pixels.model_dump()
+        pixels_coordinates: list[list[int]] = list(map(list, zip(*[(v) for _, v in x.items()])))
         if reduce is not None:
-            for i, _ in enumerate(df_from):
-                df_from[i][0] = df_from[i][0] - reduce[0]
-                df_from[i][1] = df_from[i][1] - reduce[1]
+            for i, _ in enumerate(pixels_coordinates):
+                pixels_coordinates[i][0] = pixels_coordinates[i][0] - reduce[0]
+                pixels_coordinates[i][1] = pixels_coordinates[i][1] - reduce[1]
 
         # FIX: This is a temporary fix. I shouldn't be converting to dictionary
-        x = self._config.dataset.gcp.meters.dict()
-        df_to = list(map(list, zip(*[(v) for _, v in x.items()])))
+        x = self._config.dataset.gcp.meters.model_dump()
+        meters_coordinates: list[list[int]] = list(map(list, zip(*[(v) for _, v in x.items()])))
         if self._config.preprocessing.image_correction.apply:
-            corr_img = ip.lens_corr(
+            corr_img = ip.apply_lens_correction(
                 sample_image,
                 k1=self._config.preprocessing.image_correction.k1,
                 c=self._config.preprocessing.image_correction.c,
@@ -87,11 +87,11 @@ class Formatter:
             )
         else:
             corr_img = sample_image
-        M, C, _ = ip.orthorect_param(
+        M, C, _ = ip.build_orthorect_params(
             corr_img,
-            df_from,
-            df_to,
-            PPM=self._config.dataset.ppm,
+            pixels_coordinates,
+            meters_coordinates,
+            ppm=self._config.dataset.ppm,
             lonlat=False,
         )
         return (M, C)
@@ -215,7 +215,7 @@ class Formatter:
         image = self._crop_using_refs(image)
         # apply lens distortion correction
         if self._config.preprocessing.image_correction.apply:
-            image = ip.lens_corr(
+            image = ip.apply_lens_correction(
                 image,
                 k1=self._config.preprocessing.image_correction.k1,
                 c=self._config.preprocessing.image_correction.c,
@@ -223,7 +223,7 @@ class Formatter:
             )
 
         # apply orthorectification
-        image = ip.orthorect_trans(
+        image = ip.apply_orthorec(
             image, self._or_params[0], self._or_params[1]
         )
         self._shape = (image.shape[0], image.shape[1])
