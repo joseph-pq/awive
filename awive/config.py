@@ -30,16 +30,16 @@ class ConfigGcp(BaseModel):
 
     apply: bool
     pixels: list[tuple[int, int]] = Field(
-        ..., alias="at least four coordinates: [[x1,y2], ..., [x4,y4]]"
+        ..., description="at least four pixels coordinates: [[x1,y2], ..., [x4,y4]]"
     )
     meters: list[tuple[float, float]] = Field(
         default_factory=lambda: [],
-        alias="at least four coordinates: [[x1,y2], ..., [x4,y4]]",
+        description="at least four meters coordinates: [[x1,y2], ..., [x4,y4]]",
     )
     distances: dict[tuple[int, int], float] | None = Field(
-        None, alias="distances in meters between the GCPs"
+        None, description="distances in meters between the GCPs"
     )
-    ground_truth: list[GroundTruth]
+    ground_truth: list[GroundTruth] | None = Field(None)
 
     @functools.cached_property
     def pixels_coordinates(self) -> NDArray:
@@ -92,7 +92,7 @@ class ConfigGcp(BaseModel):
 
     def model_post_init(self, __context: Any):
         if len(self.pixels) < 4:
-            raise ValueError("at least four coordinates are required")
+            raise ValueError(f"at least four coordinates are required: {len(self.pixels)}")
         if len(self.meters) == 0 and self.distances is None:
             raise ValueError("meters or distances must be provided")
         if len(self.meters) == 0 and self.distances is not None:
