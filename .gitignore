@@ -135,3 +135,4 @@ venv.bak/
 dmypy.json
 poetry.lock
 .envrc
+configs
