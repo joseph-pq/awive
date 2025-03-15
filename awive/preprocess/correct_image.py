@@ -1,8 +1,8 @@
 """Correct distortion of videos.
 
 This module contains classes and functions needed to correct distortion of
-videos, either intrinsic or extring to the camera. Also it saves the corrected
-frames in defined directory path.
+videos, either intrinsic or extrinsic to the camera. It also saves the corrected
+frames in a defined directory path.
 
 """
 
@@ -28,7 +28,14 @@ class Formatter:
     """Format frames in order to be used by image processing methods."""
 
     def __init__(self, config: Config) -> None:
-        """Initialize Formatter object."""
+        """Initialize Formatter object.
+
+        Args:
+            config: Configuration object containing settings for processing.
+
+        Raises:
+            VideoSourceError: If no sample image is found.
+        """
         # read configuration file
         self._config: Config = config
         sample_image = self._get_sample_image(self._config)
@@ -83,10 +90,13 @@ class Formatter:
         return m, c
 
     def _get_rotation_matrix(self):
-        """Rotate matrix.
+        """Calculate the rotation matrix for image rotation.
 
-        based on:
+        Based on:
         https://stackoverflow.com/questions/43892506/opencv-python-rotate-image-without-cropping-sides
+
+        Returns:
+            The rotation matrix for the given angle and image center.
         """
         a = 1.0  # TODO: idk why is 1.0
         height, width = self._shape
@@ -123,7 +133,7 @@ class Formatter:
         return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     def show_entire_image(self):
-        """Set slice to cover the entire image"""
+        """Set slice to cover the entire image."""
         w_slice = slice(0, 6000)
         h_slice = slice(0, 6000)
         self._slice = (w_slice, h_slice)
@@ -154,7 +164,16 @@ class Formatter:
     def apply_roi_extraction(
         self, image: np.ndarray, gray=True, resize_factor: float | None = None
     ) -> np.ndarray:
-        """Apply image rotation, cropping and rgb2gray"""
+        """Apply image rotation, cropping, and convert to grayscale.
+
+        Args:
+            image: The input image to process.
+            gray: Whether to convert the image to grayscale.
+            resize_factor: Factor by which to resize the image.
+
+        Returns:
+            The processed image.
+        """
         # it must be in this order in order to calibrate easier
         image = self._pre_crop(image)
         image = self._rotate(image)
@@ -168,7 +187,14 @@ class Formatter:
         return image
 
     def apply_image_enhancement(self, image: np.ndarray) -> np.ndarray:
-        """Apply contrast- and gamma correction"""
+        """Apply contrast and gamma correction.
+
+        Args:
+            image: The input image to enhance.
+
+        Returns:
+            The enhanced image.
+        """
         # img_grey = ip.color_corr(
         #     img_orth,
         #     alpha=self.enhance_alpha,
@@ -193,7 +219,14 @@ class Formatter:
         return image
 
     def apply_distortion_correction(self, image: np.ndarray) -> np.ndarray:
-        """Given GCP, undistort image."""
+        """Undistort image using Ground Control Points (GCP).
+
+        Args:
+            image: The input image to correct.
+
+        Returns:
+            The undistorted image.
+        """
         if not self._config.dataset.gcp.apply:
             return image
         if self._or_params is None:
@@ -221,7 +254,13 @@ class Formatter:
 
 
 def main(config_path: str, video_identifier: str, save_image: bool):
-    """Demonstrate basic example of video correction."""
+    """Demonstrate basic example of video correction.
+
+    Args:
+        config_path: Path to the configuration file.
+        video_identifier: Identifier for the video in the configuration.
+        save_image: Whether to save the corrected image or display it.
+    """
     config: Config = Config.from_json(config_path, video_identifier)
     t0 = time.process_time()
     loader = get_loader(config_path, video_identifier)
