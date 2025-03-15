@@ -17,10 +17,13 @@ FOLDER_PATH = "/home/joseph/Documents/Thesis/Dataset/config"
 
 
 class Loader(metaclass=abc.ABCMeta):
-    """Abstract class of loader."""
+    """Abstract class of loader.
+
+    Args:
+        config: Configuration for the dataset.
+    """
 
     def __init__(self, config: Dataset) -> None:
-        """Initialize loader."""
         self._offset: int = config.image_number_offset
         self._index: int = 0
         self.config = config
@@ -29,22 +32,38 @@ class Loader(metaclass=abc.ABCMeta):
         self.total_frames = 0
 
     @property
-    def image_shape(self):
-        """Return the shape of the images."""
+    def image_shape(self) -> tuple[int, int]:
+        """Get the shape of the images.
+
+        Returns:
+            A tuple containing the width and height of the images.
+        """
         return (self.config.width, self.config.height)
 
     @property
     def index(self) -> int:
-        """Index getter."""
+        """Get the current index.
+
+        Returns:
+            The current index as an integer.
+        """
         return self._index
 
     @abc.abstractmethod
     def has_images(self) -> bool:
-        """Check if the source contains one more frame."""
+        """Check if the source contains more frames.
+
+        Returns:
+            True if there are more frames, False otherwise.
+        """
 
     @abc.abstractmethod
     def read(self) -> np.ndarray | None:
-        """Read a new image from the source."""
+        """Read a new image from the source.
+
+        Returns:
+            The next image as a numpy array, or None if no image is available.
+        """
 
     @abc.abstractmethod
     def end(self) -> None:
@@ -75,7 +94,11 @@ class ImageLoader(Loader):
         return f"{self._image_dataset}/{self._prefix}{i:04}.jpg"
 
     def set_index(self, index: int) -> None:
-        """Set index of the loader to read any image from the folder."""
+        """Set the index of the loader to read any image from the folder.
+
+        Args:
+            index: The index to set.
+        """
         self._index = index
 
     def read(self) -> np.ndarray | None:
@@ -161,8 +184,9 @@ def make_loader(config: Dataset):
 def get_loader(config_path: str, video_identifier: str) -> Loader:
     """Return a ImageLoader or VideoLoader class.
 
-    :return image_loader: if the image_dataset has any image jpg or png
-    :return video_loader: if the previous assumption is not true
+    Args:
+        config_path: Path to the config file.
+        video_identifier: Identifier of the video in the config file.
     """
     # check if in image folder there are located the extracted images
     config = Dataset(
