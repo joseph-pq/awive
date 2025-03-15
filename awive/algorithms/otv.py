@@ -72,36 +72,35 @@ class OTV:
     def __init__(
         self, config_: Config, prev_gray: np.ndarray, debug=0
     ) -> None:
-        root_config = config_.model_dump()
-        config = config_.otv.model_dump()
+        root_config = config_
+        config = config_.otv
         self._debug = debug
-        self._partial_max_angle = config["partial_max_angle"]
-        self._partial_min_angle = config["partial_min_angle"]
-        self._final_max_angle = config["final_max_angle"]
-        self._final_min_angle = config["final_min_angle"]
-        self._final_min_distance = config["final_min_distance"]
-        self._max_features = config["max_features"]
-        self._radius = config["lk"]["radius"]
-        self._max_level = config["lk"]["max_level"]
-        self._step = config["region_step"]
-        self._resolution = config["resolution"]
-        self._pixel_to_real = config["pixel_to_real"]
+        self._partial_max_angle = config.partial_max_angle
+        self._partial_min_angle = config.partial_min_angle
+        self._final_max_angle = config.final_max_angle
+        self._final_min_angle = config.final_min_angle
+        self._final_min_distance = config.final_min_distance
+        self._max_features = config.max_features
+        self._radius = config.lk.radius
+        self._max_level = config.lk.max_level
+        self._step = config.region_step
+        self._resolution = config.resolution
+        self._pixel_to_real = 1 / root_config.preprocessing.ppm
 
         self._width = (
-            root_config["preprocessing"]["roi"]["w2"]
-            - root_config["preprocessing"]["roi"]["w1"]
+            root_config.preprocessing.roi[1][1]
+            - root_config.preprocessing.roi[0][1]
         )
         self._height = (
-            root_config["preprocessing"]["roi"]["h2"]
-            - root_config["preprocessing"]["roi"]["h1"]
+            root_config.preprocessing.roi[1][0]
+            - root_config.preprocessing.roi[1][1]
         )
-        mask_path = config["mask_path"]
-        self._regions = config["lines"]
+        self._regions = config.lines
         self.lines_width = config_.otv.lines_width
         self.resize_factor = config_.otv.resize_factor
-        if len(mask_path) != 0:
+        if config.mask_path is not None:
             self._mask: NDArray[np.uint8] | None = (
-                cv2.imread(mask_path, 0) > 1
+                cv2.imread(str(config.mask_path), 0) > 1
             ).astype(np.uint8)
             self._mask = cv2.resize(
                 self._mask,
@@ -111,18 +110,18 @@ class OTV:
         else:
             self._mask = None
 
-        winsize = config["lk"]["winsize"]
+        winsize = config.lk.winsize
 
         self.lk_params = {
             "winSize": (winsize, winsize),
             "maxLevel": self._max_level,
             "criteria": (
                 cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT,
-                config["lk"]["max_count"],
-                config["lk"]["epsilon"],
+                config.lk.max_count,
+                config.lk.epsilon,
             ),
             "flags": cv2.OPTFLOW_LK_GET_MIN_EIGENVALS,
-            "minEigThreshold": config["lk"]["min_eigen_threshold"],
+            "minEigThreshold": config.lk.min_eigen_threshold,
         }
         self.prev_gray = prev_gray
 

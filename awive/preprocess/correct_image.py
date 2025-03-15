@@ -84,7 +84,7 @@ class Formatter:
             corr_img,
             pixels_coordinates,
             meters_coordinates,
-            ppm=self._config.dataset.ppm,
+            ppm=self._config.preprocessing.ppm,
             lonlat=False,
         )
         return m, c

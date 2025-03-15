@@ -34,7 +34,8 @@ class ConfigGcp(BaseModel):
 
     apply: bool
     pixels: list[tuple[int, int]] = Field(
-        ..., description="at least four pixels coordinates: [[x1,y2], ..., [x4,y4]]"
+        ...,
+        description="at least four pixels coordinates: [[x1,y2], ..., [x4,y4]]",
     )
     meters: list[tuple[float, float]] = Field(
         default_factory=lambda: [],
@@ -96,7 +97,9 @@ class ConfigGcp(BaseModel):
 
     def model_post_init(self, __context: Any):
         if len(self.pixels) < 4:
-            raise ValueError(f"at least four coordinates are required: {len(self.pixels)}")
+            raise ValueError(
+                f"at least four coordinates are required: {len(self.pixels)}"
+            )
         if len(self.meters) == 0 and self.distances is None:
             raise ValueError("meters or distances must be provided")
         if len(self.meters) == 0 and self.distances is not None:
@@ -133,59 +136,103 @@ class PreProcessing(BaseModel):
         ..., description="((x1,y1), (x2,y2))"
     )
     image_correction: ImageCorrection
+    ppm: int = Field(
+        100,
+        description=(
+            "Resolution in pixels per meter. This is not the video "
+            "resolution, but the resolution that will be forced."
+        ),
+    )
 
 
 class Dataset(BaseModel):
     """Configuration dataset."""
 
-    image_dataset: str
-    image_number_offset: int
-    image_path_prefix: str
-    image_path_digits: int
-    video_path: str
-    ppm: int
+    image_dataset_dp: Path | None = None
+    image_number_offset: int = Field(
+        0, description="Offset for the image number"
+    )
+    image_path_prefix: str = Field("", description="Prefix for the image path")
+    image_path_digits: int = Field(
+        4, description="Number of digits for the image path"
+    )
+    video_fp: Path | None = None
     gcp: ConfigGcp
 
+    def model_post_init(self, __context: Any):
+        if self.image_dataset_dp is None and self.video_fp is None:
+            raise ValueError("Image dataset path not provided")
 
-class ConfigOtvFeatures(BaseModel):
+
+class OtvFeatures(BaseModel):
     """Config for OTV Features."""
 
-    maxcorner: int
-    qualitylevel: float
-    mindistance: int
-    blocksize: int
+    maxcorner: int = Field(
+        default=300,
+        description="Maximum number of corners to use in feature detection",
+    )
+    qualitylevel: float = Field(
+        default=0.2, description="Quality level for feature detection"
+    )
+    mindistance: int = Field(default=2, description="Minimum distance")
+    blocksize: int = Field(
+        default=2, description="Block size for feature detection"
+    )
 
 
-class ConfigOtvLucasKanade(BaseModel):
+class OtvLucasKanade(BaseModel):
     """Config for OTV Lucas Kanade."""
 
-    winsize: int
-    max_level: int
-    max_count: int
-    epsilon: float
-    flags: int
-    radius: int
-    min_eigen_threshold: float
+    winsize: int = Field(default=15, description="Window size")
+    max_level: int = Field(default=4, description="Maximum level")
+    max_count: int = Field(default=20, description="Maximum count")
+    epsilon: float = Field(default=0.03, description="Epsilon")
+    flags: int = Field(default=0, description="Flags")
+    radius: int = Field(default=7, description="Radius")
+    min_eigen_threshold: float = Field(
+        default=0.001, description="Minimum eigen threshold"
+    )
 
 
 class Otv(BaseModel):
     """Configuration OTV."""
 
-    mask_path: str
-    pixel_to_real: float
-    partial_min_angle: float
-    partial_max_angle: float
-    final_min_angle: float
-    final_max_angle: float
+    mask_path: Path | None = Field(None, description="Path to the mask")
+    partial_min_angle: float = Field(135, description="degrees")
+    partial_max_angle: float = Field(225, description="degrees")
+    final_min_angle: float = Field(160, description="degrees")
+    final_max_angle: float = Field(200, description="degrees")
     final_min_distance: int
-    max_features: int
-    region_step: int
-    resolution: int
-    features: ConfigOtvFeatures
-    lk: ConfigOtvLucasKanade
-    lines: list[int]
-    lines_width: int
-    resize_factor: float | None = None
+    max_features: int = Field(
+        7000, description="Maximum number of features to track between frames"
+    )
+    region_step: int = Field(
+        240, description="Step for the region. This feature is not used."
+    )
+    resolution: float
+    features: OtvFeatures = Field(
+        default_factory=lambda: OtvFeatures(),
+        description="Features configuration",
+    )
+    lk: OtvLucasKanade = Field(
+        default_factory=lambda: OtvLucasKanade(),
+        description="Lucas Kanade configuration",
+    )
+    lines: list[int] = Field(
+        ...,
+        description="Height of the lines to extract the velocity vector",
+    )
+    lines_width: int = Field(
+        ...,
+        description="Width of the lines to extract the velocity vector",
+    )
+    resize_factor: float | None = Field(
+        default=None,
+        description=(
+            "Resize factor for the image before applying OTV. This is used "
+            "when the image is too big"
+        )
+    )
 
 
 class ConfigStivLine(BaseModel):
@@ -221,6 +268,6 @@ class Config(BaseModel):
 
     dataset: Dataset
     otv: Otv
-    stiv: Stiv
+    stiv: Stiv | None = None
     preprocessing: PreProcessing
     water_level: WaterLevel | None = None

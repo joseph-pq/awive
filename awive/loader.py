@@ -32,13 +32,11 @@ class Loader(metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def width(self) -> int:
-        ...
+    def width(self) -> int: ...
 
     @property
     @abc.abstractmethod
-    def height(self) -> int:
-        ...
+    def height(self) -> int: ...
 
     @property
     def index(self) -> int:
@@ -76,14 +74,18 @@ class ImageLoader(Loader):
     def __init__(self, config: DatasetConfig) -> None:
         """Initialize loader."""
         super().__init__(config)
-        self._image_dataset = config.image_dataset
+        if config.image_dataset_dp is None:
+            raise ValueError("Image dataset path not provided")
+        self._image_dataset: Path = config.image_dataset_dp
         self._prefix = config.image_path_prefix
         self._digits = config.image_path_digits
         self._image_number = len(os.listdir(self._image_dataset))
         # Read first image
         img = self.read()
         if img is None:
-            raise FileNotFoundError(f"Image not found: {self._path(self._index)}")
+            raise FileNotFoundError(
+                f"Image not found: {self._path(self._index)}"
+            )
         self.set_index(0)  # Reset index
         self._width = img.shape[1]
         self._height = img.shape[0]
@@ -91,10 +93,10 @@ class ImageLoader(Loader):
     @property
     def width(self) -> int:
         return self._width
+
     @property
     def height(self) -> int:
         return self._height
-
 
     def has_images(self) -> bool:
         """Check if the source contains one more frame."""
@@ -144,14 +146,18 @@ class VideoLoader(Loader):
         super().__init__(config)
 
         # check if config.video_path exists
-        if not Path(config.video_path).exists():
-            raise FileNotFoundError(f"Video not found: {config.video_path}")
+        if config.video_fp is None:
+            raise ValueError("Video path not provided")
+        if not config.video_fp.exists():
+            raise FileNotFoundError(f"Video not found: {config.video_fp}")
 
-        self._cap: cv2.VideoCapture = cv2.VideoCapture(self.config.video_path)  # type: ignore[call-arg]
+        self._cap: cv2.VideoCapture = cv2.VideoCapture(
+            str(self.config.video_fp)
+        )  # type: ignore[call-arg]
         self._image_read: bool = False  # Check if the current images was read
 
         # Get number of frames
-        cap: cv2.VideoCapture = cv2.VideoCapture(self.config.video_path)  # type: ignore[call-arg]
+        cap: cv2.VideoCapture = cv2.VideoCapture(str(self.config.video_fp))  # type: ignore[call-arg]
         property_id: int = int(cv2.CAP_PROP_FRAME_COUNT)
         self.total_frames = int(cv2.VideoCapture.get(cap, property_id)) + 1
         self.fps = cap.get(cv2.CAP_PROP_FPS)
@@ -197,9 +203,10 @@ class VideoLoader(Loader):
 def make_loader(config: DatasetConfig):
     """Make a loader based on config."""
     # check if the image_folder_path contains any jpg or png file
-    for file in Path(config.image_dataset).iterdir():
-        if file.suffix in (".jpg", ".png"):
-            return ImageLoader(config)
+    if config.image_dataset_dp is not None:
+        for file in config.image_dataset_dp.iterdir():
+            if file.suffix in (".jpg", ".png"):
+                return ImageLoader(config)
 
     return VideoLoader(config)
 
