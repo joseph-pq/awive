@@ -161,9 +161,7 @@ class Formatter:
         self._rotation_matrix = self._get_rotation_matrix()
         return new_image
 
-    def apply_roi_extraction(
-        self, image: np.ndarray, gray=True, resize_factor: float | None = None
-    ) -> np.ndarray:
+    def apply_roi_extraction(self, image: np.ndarray, gray=True) -> np.ndarray:
         """Apply image rotation, cropping, and convert to grayscale.
 
         Args:
@@ -180,10 +178,6 @@ class Formatter:
         image = self._crop(image)
         if gray:
             image = self._gray(image)
-        if resize_factor is not None:
-            image = cv2.resize(
-                image, (0, 0), fx=resize_factor, fy=resize_factor
-            )
         return image
 
     def apply_image_enhancement(self, image: np.ndarray) -> np.ndarray:
@@ -273,9 +267,7 @@ def main(config_fp: Path, save_image: bool = False) -> None:
     t3 = time.process_time()
     image = formatter.apply_distortion_correction(image)
     t4 = time.process_time()
-    image = formatter.apply_roi_extraction(
-        image, resize_factor=config.stiv.resize_factor
-    )
+    image = formatter.apply_roi_extraction(image)
     t5 = time.process_time()
     loader.end()
     t6 = time.process_time()

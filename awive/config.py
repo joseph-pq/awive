@@ -202,14 +202,26 @@ class Otv(BaseModel):
     partial_max_angle: float = Field(225, description="degrees")
     final_min_angle: float = Field(160, description="degrees")
     final_max_angle: float = Field(200, description="degrees")
-    final_min_distance: int
+    final_min_distance: int = Field(
+        8,
+        description=(
+            "Minimum trajectory distances (pixeles) of tracked features "
+            "from beginning of the trajectory to the end"
+        )
+    )
     max_features: int = Field(
         7000, description="Maximum number of features to track between frames"
     )
     region_step: int = Field(
         240, description="Step for the region. This feature is not used."
     )
-    resolution: float
+    resolution: float = Field(
+        1,
+        description=(
+            "Resolution to process the video. Use this feature when the image"
+            " resolution is too big"
+        ),
+    )
     features: OtvFeatures = Field(
         default_factory=lambda: OtvFeatures(),
         description="Features configuration",
@@ -225,13 +237,6 @@ class Otv(BaseModel):
     lines_width: int = Field(
         ...,
         description="Width of the lines to extract the velocity vector",
-    )
-    resize_factor: float | None = Field(
-        default=None,
-        description=(
-            "Resize factor for the image before applying OTV. This is used "
-            "when the image is too big"
-        )
     )
 
 
