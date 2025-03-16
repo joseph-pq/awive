@@ -248,13 +248,17 @@ class OTV:
         #     []
         # ] * loader.total_frames
         # velocity_mem: list[list[float]] = [[] for _ in range(loader.total_frames)]
-        velocities: list[list[float]] = [[] for _ in range(loader.total_frames)]
+        velocities: list[list[float]] = [
+            [] for _ in range(loader.total_frames)
+        ]
         # angles: list[list[float]] = [[] for _ in range(loader.total_frames)]
         # distance: list[list[float]] = [[] for _ in range(loader.total_frames)]
         path: list[list[int]] = [[] for _ in range(loader.total_frames)]
         # keypoints_mem_current: list[list[cv2.KeyPoint]] = []
         # keypoints_mem_predicted: list[list[cv2.KeyPoint]] = []
-        regions: list[list[float]] = [[] for _ in range(len(self.regions_heights))]
+        regions: list[list[float]] = [
+            [] for _ in range(len(self.regions_heights))
+        ]
 
         # traj_map must have the size of the image after all preprocessing
         traj_map = np.zeros_like(self.prev_gray)
@@ -385,12 +389,12 @@ class OTV:
 
                 if show_video:
                     color_frame = cv2.cvtColor(curr_frame, cv2.COLOR_GRAY2RGB)
-                    output: NDArray[np.float32] = draw_vectors(
+                    output: NDArray[np.uint8] = draw_vectors(
                         color_frame,
                         prev_kps,
                         curr_kps,
                         masks,
-                    ).astype(np.float32)
+                    )
                     imshow(output, "sparse optical flow", handle_destroy=False)
                     if cv2.waitKey(10) & 0xFF == ord("q"):
                         LOG.debug("Breaking")
@@ -436,26 +440,34 @@ class OTV:
         return out_json
 
 
-def draw_vectors(image, new_list, old_list, masks):
+def draw_vectors(
+    image: NDArray[np.uint8],
+    new_list: list[cv2.KeyPoint],
+    old_list: list[cv2.KeyPoint],
+    masks: list[NDArray[np.uint8]],
+) -> NDArray[np.uint8]:
     """Draw vectors of velocity and return the output and update mask"""
-    if len(image.shape) == 3:
-        color = (0, 255, 0)
-        thick = 1
-    else:
-        color = 255
-        thick = 1
+    thick = 1
+    # if len(image.shape) == 3:
+    #     color: tuple | int = (0, 255, 0)
+    #     thick = 1
+    # else:
+    #     color = 255
+    #     thick = 1
 
     # create new mask
-    mask = np.zeros(image.shape, dtype=np.uint8)
+    mask = np.zeros(image.shape[:2], dtype=np.uint8)
     for new, old in zip(new_list, old_list):
-        new_pt = (int(new.pt[0]), int(new.pt[1]))
-        old_pt = (int(old.pt[0]), int(old.pt[1]))
-        mask = cv2.line(mask, new_pt, old_pt, color, thick)
+        new_pt = (int(new.pt[0]), int(new.pt[1]))  # type: ignore
+        old_pt = (int(old.pt[0]), int(old.pt[1]))  # type: ignore
+        distance = math.dist(new_pt, old_pt)
+        intensity = min(int(255 * (distance / 30)), 255)  # TODO: change 50
+        mask = cv2.line(mask, new_pt, old_pt, intensity, thick)
 
     # update masks list
     masks.append(mask)
     if len(masks) < 3:
-        return np.zeros(image.shape)
+        return np.zeros(image.shape, dtype=np.uint8)
     if len(masks) > 3:
         masks.pop(0)
 
@@ -463,6 +475,11 @@ def draw_vectors(image, new_list, old_list, masks):
     total_mask = np.zeros(mask.shape, dtype=np.uint8)
     for mask_ in masks:
         total_mask = cv2.add(total_mask, mask_)
+    # mask when values of total_mask are 0
+    temp_mask = np.zeros_like(total_mask)
+    temp_mask[total_mask == 0] = 255
+    total_mask = cv2.applyColorMap(total_mask, cv2.COLORMAP_JET)
+    total_mask[temp_mask == 255] = 0
     output = cv2.add(image, total_mask)
     return output
 
