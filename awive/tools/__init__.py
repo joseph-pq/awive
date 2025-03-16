@@ -1,7 +1,7 @@
 import cv2
 from numpy.typing import NDArray
 
-def imshow(img: NDArray, title: str = "Image") -> None:
+def imshow(img: NDArray, title: str = "Image", handle_destroy: bool = True) -> None:
     if img.shape[0] > img.shape[1]:
         new_height = 512
         new_width = int(img.shape[1] / img.shape[0] * new_height)
@@ -12,5 +12,6 @@ def imshow(img: NDArray, title: str = "Image") -> None:
     print(f"{img.shape=}")
 
     cv2.imshow(title, img)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    if handle_destroy:
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()

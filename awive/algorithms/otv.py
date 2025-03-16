@@ -12,6 +12,7 @@ from numpy.typing import NDArray
 from awive.config import Config
 from awive.loader import Loader, make_loader
 from awive.preprocess.correct_image import Formatter
+from awive.tools import imshow
 import logging
 
 LOG = logging.getLogger(__name__)
@@ -54,26 +55,28 @@ def _get_velocity(
     return get_magnitude(kp1, kp2) * pixels_to_meters * fps / frames
 
 
-def reject_outliers(data, m=2.0):
+def reject_outliers(data: NDArray[np.float32], m=2.0):
     d = np.abs(data - np.median(data))
     mdev = np.median(d)
     s = d / mdev if mdev else 0.0
     return data[s < m]
 
 
-def compute_stats(velocity, hist=False):
-    v = np.array(sum(velocity, []))
-    if len(v) == 0:
+def compute_stats(velocity: list[list[float]], hist=False):
+    """Compute statistics of the velocity
+    Args:
+        velocity: List of velocities
+        hist: If True, show histogram of velocities
+
+    Returns:
+        Tuple of mean, max, min, std deviation, and count of velocities
+    """
+    v = np.array(velocity).flatten()
+    if v.size == 0:
         return 0, 0, 0, 0, 0
     v = reject_outliers(v)
-    count = len(v)
-    if count == 0:
+    if v.size == 0:
         return 0, 0, 0, 0, 0
-    avg = v.mean()
-    max_ = v.max()
-    min_ = v.min()
-    std_dev = np.std(v)
-
     if hist:
         pass
         # import matplotlib.pyplot as plt
@@ -82,7 +85,7 @@ def compute_stats(velocity, hist=False):
         # plt.xlabel('Data');
         # plt.show()
 
-    return avg, max_, min_, std_dev, count
+    return v.mean(), v.max(), v.min(), np.std(v), len(v)
 
 
 class OTV:
@@ -287,7 +290,7 @@ class OTV:
 
                 # add predicted by Lucas-Kanade new keypoints
                 keypoints_predicted = [
-                    cv2.KeyPoint(pt2[0], pt2[1], 1.0) # type: ignore[arg-type]
+                    cv2.KeyPoint(pt2[0], pt2[1], 1.0)  # type: ignore[arg-type]
                     for pt2 in pts2
                 ]
 
@@ -379,12 +382,9 @@ class OTV:
                         keypoints_current,
                         masks,
                     ).astype(np.float32)
-                    # Scale to 512p as width
-                    initial_shape = output.shape
-                    height = int(512 * initial_shape[0] / initial_shape[1])
-                    output = cv2.resize(output, (512, height))
-                    cv2.imshow("sparse optical flow", output)
+                    imshow(output, "sparse optical flow", handle_destroy=False)
                     if cv2.waitKey(10) & 0xFF == ord("q"):
+                        LOG.info("Breaking")
                         break
 
             previous_frame = current_frame.copy()
@@ -403,14 +403,16 @@ class OTV:
         loader.end()
         if show_video:
             cv2.destroyAllWindows()
-        avg, max_, min_, std_dev, count = compute_stats(velocity, show_video)
 
+        LOG.info("Computing stats")
+        avg, max_, min_, std_dev, count = compute_stats(velocity, show_video)
         LOG.debug("avg:", round(avg, 4))
         LOG.debug("max:", round(max_, 4))
         LOG.debug("min:", round(min_, 4))
         LOG.debug("std_dev:", round(std_dev, 2))
         LOG.debug("count:", count)
 
+        LOG.info("Computing stats by region")
         out_json: dict[str, dict[str, float]] = {}
         for i, (sv, position) in enumerate(zip(regions, self._regions)):
             out_json[str(i)] = {}
@@ -424,6 +426,7 @@ class OTV:
             out_json[str(i)]["velocity"] = m
             out_json[str(i)]["count"] = len(t)
             out_json[str(i)]["position"] = position
+        LOG.info("Finished")
         return out_json
 
 
