@@ -2,7 +2,6 @@
 
 import abc
 import argparse
-import json
 import os
 from pathlib import Path
 from typing import Iterable
@@ -11,16 +10,19 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-from awive.config import ConfigDataset
+from awive.config import Dataset as DatasetConfig, Config
 
-FOLDER_PATH = '/home/joseph/Documents/Thesis/Dataset/config'
+FOLDER_PATH = "/home/joseph/Documents/Thesis/Dataset/config"
 
 
 class Loader(metaclass=abc.ABCMeta):
-    """Abstract class of loader."""
+    """Abstract class of loader.
 
-    def __init__(self, config: ConfigDataset) -> None:
-        """Initialize loader."""
+    Args:
+        config: Configuration for the dataset.
+    """
+
+    def __init__(self, config: DatasetConfig) -> None:
         self._offset: int = config.image_number_offset
         self._index: int = 0
         self.config = config
@@ -29,22 +31,37 @@ class Loader(metaclass=abc.ABCMeta):
         self.total_frames = 0
 
     @property
-    def image_shape(self):
-        """Return the shape of the images."""
-        return (self.config.width, self.config.height)
+    @abc.abstractmethod
+    def width(self) -> int: ...
+
+    @property
+    @abc.abstractmethod
+    def height(self) -> int: ...
 
     @property
     def index(self) -> int:
-        """Index getter."""
+        """Get the current index.
+
+        Returns:
+            The current index as an integer.
+        """
         return self._index
 
     @abc.abstractmethod
     def has_images(self) -> bool:
-        """Check if the source contains one more frame."""
+        """Check if the source contains more frames.
+
+        Returns:
+            True if there are more frames, False otherwise.
+        """
 
     @abc.abstractmethod
     def read(self) -> np.ndarray | None:
-        """Read a new image from the source."""
+        """Read a new image from the source.
+
+        Returns:
+            The next image as a numpy array, or None if no image is available.
+        """
 
     @abc.abstractmethod
     def end(self) -> None:
@@ -54,13 +71,32 @@ class Loader(metaclass=abc.ABCMeta):
 class ImageLoader(Loader):
     """Loader that loads images from a directory."""
 
-    def __init__(self, config: ConfigDataset) -> None:
+    def __init__(self, config: DatasetConfig) -> None:
         """Initialize loader."""
         super().__init__(config)
-        self._image_dataset = config.image_dataset
+        if config.image_dataset_dp is None:
+            raise ValueError("Image dataset path not provided")
+        self._image_dataset: Path = config.image_dataset_dp
         self._prefix = config.image_path_prefix
         self._digits = config.image_path_digits
         self._image_number = len(os.listdir(self._image_dataset))
+        # Read first image
+        img = self.read()
+        if img is None:
+            raise FileNotFoundError(
+                f"Image not found: {self._path(self._index)}"
+            )
+        self.set_index(0)  # Reset index
+        self._width = img.shape[1]
+        self._height = img.shape[0]
+
+    @property
+    def width(self) -> int:
+        return self._width
+
+    @property
+    def height(self) -> int:
+        return self._height
 
     def has_images(self) -> bool:
         """Check if the source contains one more frame."""
@@ -69,13 +105,17 @@ class ImageLoader(Loader):
     def _path(self, i: int) -> str:
         i += self._offset
         if self._digits == 5:
-            return f'{self._image_dataset}/{self._prefix}{i:05}.jpg'
+            return f"{self._image_dataset}/{self._prefix}{i:05}.jpg"
         if self._digits == 3:
-            return f'{self._image_dataset}/{self._prefix}{i:03}.jpg'
-        return f'{self._image_dataset}/{self._prefix}{i:04}.jpg'
+            return f"{self._image_dataset}/{self._prefix}{i:03}.jpg"
+        return f"{self._image_dataset}/{self._prefix}{i:04}.jpg"
 
     def set_index(self, index: int) -> None:
-        """Set index of the loader to read any image from the folder."""
+        """Set the index of the loader to read any image from the folder.
+
+        Args:
+            index: The index to set.
+        """
         self._index = index
 
     def read(self) -> np.ndarray | None:
@@ -83,7 +123,7 @@ class ImageLoader(Loader):
         self._index += 1
         path: str = self._path(self._index)
         if not Path(path).exists():
-            raise FileNotFoundError(f'Image not found: {path}')
+            raise FileNotFoundError(f"Image not found: {path}")
         return cv2.imread(self._path(self._index))
 
     def read_iter(self) -> Iterable[np.ndarray]:
@@ -101,29 +141,41 @@ class ImageLoader(Loader):
 class VideoLoader(Loader):
     """Loader that loads from a video."""
 
-    def __init__(self, config: ConfigDataset) -> None:
+    def __init__(self, config: DatasetConfig) -> None:
         """Initialize loader."""
         super().__init__(config)
 
         # check if config.video_path exists
-        if not Path(config.video_path).exists():
-            raise FileNotFoundError(f'Video not found: {config.video_path}')
+        if config.video_fp is None:
+            raise ValueError("Video path not provided")
+        if not config.video_fp.exists():
+            raise FileNotFoundError(f"Video not found: {config.video_fp}")
 
-        self._cap: cv2.VideoCapture = cv2.VideoCapture(self.config.video_path)
+        self._cap: cv2.VideoCapture = cv2.VideoCapture(
+            str(self.config.video_fp)
+        )  # type: ignore[call-arg]
         self._image_read: bool = False  # Check if the current images was read
 
         # Get number of frames
-        cap: cv2.VideoCapture = cv2.VideoCapture(self.config.video_path)
+        cap: cv2.VideoCapture = cv2.VideoCapture(str(self.config.video_fp))  # type: ignore[call-arg]
         property_id: int = int(cv2.CAP_PROP_FRAME_COUNT)
         self.total_frames = int(cv2.VideoCapture.get(cap, property_id)) + 1
         self.fps = cap.get(cv2.CAP_PROP_FPS)
-        self.width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        self._width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self._height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
         # Skip offset
-        for _ in range(self._offset+1):
+        for _ in range(self._offset + 1):
             if self.has_images():
                 self.read()
+
+    @property
+    def width(self) -> int:
+        return self._width
+
+    @property
+    def height(self) -> int:
+        return self._height
 
     def has_images(self):
         """Check if the source contains one more frame."""
@@ -139,7 +191,7 @@ class VideoLoader(Loader):
         if self._image_read:
             ret, self.current_image = self._cap.read()
             if not ret:
-                print('error at reading')
+                print("error at reading")
         self._image_read = True
         return self.current_image
 
@@ -148,69 +200,70 @@ class VideoLoader(Loader):
         self._cap.release()
 
 
-def make_loader(config: ConfigDataset):
+def make_loader(config: DatasetConfig):
     """Make a loader based on config."""
     # check if the image_folder_path contains any jpg or png file
-    for file in Path(config.image_dataset).iterdir():
-        if file.suffix in ('.jpg', '.png'):
-            return ImageLoader(config)
+    if config.image_dataset_dp is not None:
+        for file in config.image_dataset_dp.iterdir():
+            if file.suffix in (".jpg", ".png"):
+                return ImageLoader(config)
 
     return VideoLoader(config)
 
 
-def get_loader(config_path: str, video_identifier: str) -> Loader:
+def get_loader(config_fp: Path) -> Loader:
     """Return a ImageLoader or VideoLoader class.
 
-    :return image_loader: if the image_dataset has any image jpg or png
-    :return video_loader: if the previous assumption is not true
+    Args:
+        config_path: Path to the config file.
+        video_identifier: Identifier of the video in the config file.
     """
-    # check if in image folder there are located the extracted images
-    config = ConfigDataset(
-        **json.loads(
-            Path(config_path).read_text()
-        )[video_identifier]['dataset']
-    )
-    return make_loader(config)
+    return make_loader(Config.from_fp(config_fp).dataset)
 
 
-def main(config_path: str, video_identifier: str, save_image: bool):
+def main(config_path: Path, video_identifier: str, save_image: bool):
     """Execute a basic example of loader."""
-    loader = get_loader(config_path, video_identifier)
+    loader = get_loader(config_path)
     image = loader.read()
+    if image is None:
+        print("No image found")
+        return
     if save_image:
-        cv2.imwrite('tmp.jpg', image)
+        cv2.imwrite("tmp.jpg", image)
     else:
-        cv2.imshow('image', cv2.resize(image, (1000, 1000)))
+        cv2.imshow("image", cv2.resize(image, (1000, 1000)))
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
     loader.end()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "statio_name",
-        help="Name of the station to be analyzed")
+        "statio_name", help="Name of the station to be analyzed"
+    )
     parser.add_argument(
-        "video_identifier",
-        help="Index of the video of the json config file")
+        "video_identifier", help="Index of the video of the json config file"
+    )
     parser.add_argument(
-        '-s',
-        '--save',
-        help='Save images instead of showing',
-        action='store_true')
+        "-s",
+        "--save",
+        help="Save images instead of showing",
+        action="store_true",
+    )
     parser.add_argument(
-        '-p',
-        '--path',
-        help='Path to the config folder',
+        "-p",
+        "--path",
+        help="Path to the config folder",
         type=str,
-        default=FOLDER_PATH)
+        default=FOLDER_PATH,
+    )
 
     args = parser.parse_args()
-    CONFIG_PATH = f'{args.path}/{args.statio_name}.json'
+    CONFIG_PATH = Path(f"{args.path}/{args.statio_name}.json")
     main(
         config_path=CONFIG_PATH,
         video_identifier=args.video_identifier,
-        save_image=args.save
+        save_image=args.save,
     )

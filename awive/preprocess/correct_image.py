@@ -1,12 +1,12 @@
 """Correct distortion of videos.
 
 This module contains classes and functions needed to correct distortion of
-videos, either intrinsic or extring to the camera. Also it saves the corrected
-frames in defined directory path.
+videos, either intrinsic or extrinsic to the camera. It also saves the corrected
+frames in a defined directory path.
 
 """
 
-import argparse
+from pathlib import Path
 import logging
 import time
 from typing import Any
@@ -15,12 +15,12 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-import awive.imageprep as ip
+import awive.preprocess.imageprep as ip
 from awive.config import Config
 from awive.exceptions import VideoSourceError
-from awive.loader import get_loader, make_loader
+from awive.loader import make_loader
+from awive.tools import imshow
 
-FOLDER_PATH = "/home/joseph/Documents/Thesis/Dataset/config"
 LOG = logging.getLogger(__name__)
 
 
@@ -28,52 +28,53 @@ class Formatter:
     """Format frames in order to be used by image processing methods."""
 
     def __init__(self, config: Config) -> None:
-        """Initialize Formatter object."""
+        """Initialize Formatter object.
+
+        Args:
+            config: Configuration object containing settings for processing.
+
+        Raises:
+            VideoSourceError: If no sample image is found.
+        """
         # read configuration file
         self._config: Config = config
+        self.resolution = config.preprocessing.resolution
+        self.ppm = config.preprocessing.ppm
         sample_image = self._get_sample_image(self._config)
         if sample_image is None:
             raise VideoSourceError("No sample image found")
         self._shape = (sample_image.shape[0], sample_image.shape[1])
         if self._config.dataset.gcp.apply:
-            self._or_params = self._get_orthorectification_params(sample_image)
+            self._or_params: tuple[Any, np.ndarray] | None = (
+                self._get_orthorectification_params(sample_image)
+            )
         else:
             self._or_params = None
 
         self._rotation_angle = self._config.preprocessing.rotate_image
         self._rotation_matrix = self._get_rotation_matrix()
-
-        w_slice = slice(
-            self._config.preprocessing.roi.w1, self._config.preprocessing.roi.w2
+        self._slice = tuple(
+            map(
+                lambda x: slice(x[0], x[1]),
+                zip(*self._config.preprocessing.roi),
+            )
         )
-        h_slice = slice(
-            self._config.preprocessing.roi.h1, self._config.preprocessing.roi.h2
+        self._pre_slice = tuple(
+            map(
+                lambda x: slice(x[0], x[1]),
+                zip(*self._config.preprocessing.pre_roi),
+            )
         )
-        self._slice = (w_slice, h_slice)
-        w_slice = slice(
-            self._config.preprocessing.pre_roi.w1, self._config.preprocessing.pre_roi.w2
-        )
-        h_slice = slice(
-            self._config.preprocessing.pre_roi.h1, self._config.preprocessing.pre_roi.h2
-        )
-        self._pre_slice = (w_slice, h_slice)
 
     def _get_orthorectification_params(
-        self, sample_image: np.ndarray, reduce=None
-    ) -> tuple[Any, NDArray]:
-        # FIX: This is a temporary fix. I shouldn't be converting to dictionary
-        x = self._config.dataset.gcp.pixels.dict()
-        df_from = list(map(list, zip(*[(v) for _, v in x.items()])))
+        self, sample_image: NDArray, reduce: NDArray | None = None
+    ) -> tuple[NDArray, NDArray]:
+        pixels_coordinates = self._config.dataset.gcp.pixels_coordinates
+        meters_coordinates = self._config.dataset.gcp.meters_coordinates
         if reduce is not None:
-            for i, _ in enumerate(df_from):
-                df_from[i][0] = df_from[i][0] - reduce[0]
-                df_from[i][1] = df_from[i][1] - reduce[1]
-
-        # FIX: This is a temporary fix. I shouldn't be converting to dictionary
-        x = self._config.dataset.gcp.meters.dict()
-        df_to = list(map(list, zip(*[(v) for _, v in x.items()])))
+            pixels_coordinates = pixels_coordinates - reduce
         if self._config.preprocessing.image_correction.apply:
-            corr_img = ip.lens_corr(
+            corr_img = ip.apply_lens_correction(
                 sample_image,
                 k1=self._config.preprocessing.image_correction.k1,
                 c=self._config.preprocessing.image_correction.c,
@@ -81,23 +82,32 @@ class Formatter:
             )
         else:
             corr_img = sample_image
-        M, C, _ = ip.orthorect_param(
-            corr_img, df_from, df_to, PPM=self._config.dataset.ppm, lonlat=False
+        m, c = ip.build_orthorect_params(
+            corr_img,
+            pixels_coordinates,
+            meters_coordinates,
+            ppm=self._config.preprocessing.ppm,
+            lonlat=False,
         )
-        return (M, C)
+        return m, c
 
     def _get_rotation_matrix(self):
-        """Rotate matrix.
+        """Calculate the rotation matrix for image rotation.
 
-        based on:
+        Based on:
         https://stackoverflow.com/questions/43892506/opencv-python-rotate-image-without-cropping-sides
+
+        Returns:
+            The rotation matrix for the given angle and image center.
         """
         a = 1.0  # TODO: idk why is 1.0
         height, width = self._shape
         image_center = (width / 2, height / 2)
         # getRotationMatrix2D needs coordinates in reverse
         # order (width, height) compared to shape
-        rot_mat = cv2.getRotationMatrix2D(image_center, self._rotation_angle, a)
+        rot_mat = cv2.getRotationMatrix2D(
+            image_center, self._rotation_angle, a
+        )
         # rotation calculates the cos and sin, taking absolutes of those.
         abs_cos = abs(rot_mat[0, 0])
         abs_sin = abs(rot_mat[0, 1])
@@ -125,7 +135,7 @@ class Formatter:
         return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     def show_entire_image(self):
-        """Set slice to cover the entire image"""
+        """Set slice to cover the entire image."""
         w_slice = slice(0, 6000)
         h_slice = slice(0, 6000)
         self._slice = (w_slice, h_slice)
@@ -133,7 +143,9 @@ class Formatter:
     def _rotate(self, image: np.ndarray) -> np.ndarray:
         if self._rotation_angle != 0:
             # rotate image with the new bounds and translated rotation matrix
-            rotated_mat = cv2.warpAffine(image, self._rotation_matrix, self._bound)
+            rotated_mat = cv2.warpAffine(
+                image, self._rotation_matrix, self._bound
+            )
             return rotated_mat
         return image
 
@@ -151,22 +163,34 @@ class Formatter:
         self._rotation_matrix = self._get_rotation_matrix()
         return new_image
 
-    def apply_roi_extraction(
-        self, image: np.ndarray, gray=True, resize_factor: float | None = None
-    ) -> np.ndarray:
-        """Apply image rotation, cropping and rgb2gray"""
+    def apply_roi_extraction(self, image: NDArray, gray=True) -> NDArray:
+        """Apply image rotation, cropping, and convert to grayscale.
+
+        Args:
+            image: The input image to process.
+            gray: Whether to convert the image to grayscale.
+            resize_factor: Factor by which to resize the image.
+
+        Returns:
+            The processed image.
+        """
         # it must be in this order in order to calibrate easier
         image = self._pre_crop(image)
         image = self._rotate(image)
         image = self._crop(image)
         if gray:
             image = self._gray(image)
-        if resize_factor is not None:
-            image = cv2.resize(image, (0, 0), fx=resize_factor, fy=resize_factor)
         return image
 
     def apply_image_enhancement(self, image: np.ndarray) -> np.ndarray:
-        """Apply contrast- and gamma correction"""
+        """Apply contrast and gamma correction.
+
+        Args:
+            image: The input image to enhance.
+
+        Returns:
+            The enhanced image.
+        """
         # img_grey = ip.color_corr(
         #     img_orth,
         #     alpha=self.enhance_alpha,
@@ -176,20 +200,47 @@ class Formatter:
 
     def _crop_using_refs(self, image: np.ndarray) -> np.ndarray:
         image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        xs = self._config.dataset.gcp.pixels.y
-        ys = self._config.dataset.gcp.pixels.x
-        xslice = slice(min(xs), max(xs) + 1)
-        yslice = slice(min(ys), max(ys) + 1)
-        image = image[xslice, yslice]
+        x_min, y_min = np.min(
+            self._config.dataset.gcp.pixels_coordinates, axis=0
+        )
+        x_max, y_max = np.max(
+            self._config.dataset.gcp.pixels_coordinates, axis=0
+        )
+        image = image[y_min:y_max, x_min:x_max]
         self._shape = (image.shape[0], image.shape[1])
         self._or_params = self._get_orthorectification_params(
-            image, reduce=(min(ys), min(xs))
+            image, reduce=np.array([y_min, x_min])
         )
         self._rotation_matrix = self._get_rotation_matrix()
         return image
 
+    def apply_resolution(self, image: np.ndarray) -> np.ndarray:
+        """Apply resolution reduction to the image.
+
+        Args:
+            image: The input image to reduce resolution.
+
+        Returns:
+            The image with reduced resolution.
+        """
+        if self._config.preprocessing.resolution >= 1:
+            return image
+        return cv2.resize(
+            image,
+            (0, 0),
+            fx=self._config.preprocessing.resolution,
+            fy=self._config.preprocessing.resolution,
+        )
+
     def apply_distortion_correction(self, image: np.ndarray) -> np.ndarray:
-        """Given GCP, undistort image."""
+        """Undistort image using Ground Control Points (GCP).
+
+        Args:
+            image: The input image to correct.
+
+        Returns:
+            The undistorted image.
+        """
         if not self._config.dataset.gcp.apply:
             return image
         if self._or_params is None:
@@ -199,7 +250,7 @@ class Formatter:
         image = self._crop_using_refs(image)
         # apply lens distortion correction
         if self._config.preprocessing.image_correction.apply:
-            image = ip.lens_corr(
+            image = ip.apply_lens_correction(
                 image,
                 k1=self._config.preprocessing.image_correction.k1,
                 c=self._config.preprocessing.image_correction.c,
@@ -207,26 +258,36 @@ class Formatter:
             )
 
         # apply orthorectification
-        image = ip.orthorect_trans(image, self._or_params[0], self._or_params[1])
+        image = ip.apply_orthorec(
+            image, self._or_params[0], self._or_params[1]
+        )
         self._shape = (image.shape[0], image.shape[1])
         # update rotation matrix such as the shape of the image changed
         self._rotation_matrix = self._get_rotation_matrix()
         return image
 
 
-def main(config_path: str, video_identifier: str, save_image: bool):
-    """Demonstrate basic example of video correction."""
-    config: Config = Config.from_json(config_path, video_identifier)
+def main(config_fp: Path, save_image: bool = False) -> None:
+    """Demonstrate basic example of video correction.
+
+    Args:
+        config_path: Path to the configuration file.
+        save_image: Whether to save the corrected image or display it.
+    """
+    config: Config = Config.from_fp(config_fp)
     t0 = time.process_time()
-    loader = get_loader(config_path, video_identifier)
+    loader = make_loader(config.dataset)
     t1 = time.process_time()
     formatter = Formatter(config)
     t2 = time.process_time()
     image = loader.read()
+    if image is None:
+        print("No image found")
+        return
     t3 = time.process_time()
     image = formatter.apply_distortion_correction(image)
     t4 = time.process_time()
-    image = formatter.apply_roi_extraction(image, resize_factor=config.stiv.resize_factor)
+    image = formatter.apply_roi_extraction(image)
     t5 = time.process_time()
     loader.end()
     t6 = time.process_time()
@@ -240,28 +301,10 @@ def main(config_path: str, video_identifier: str, save_image: bool):
     if save_image:
         cv2.imwrite("tmp.jpg", image)
     else:
-        cv2.imshow("image", cv2.resize(image, (1000, 1000)))
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        imshow(image)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("statio_name", help="Name of the station to be analyzed")
-    parser.add_argument(
-        "video_identifier", help="Index of the video of the json config file"
-    )
-    parser.add_argument(
-        "-s", "--save", help="Save images instead of showing", action="store_true"
-    )
-    parser.add_argument(
-        "-p", "--path", help="Path to the config folder", type=str, default=FOLDER_PATH
-    )
+    import typer
 
-    args = parser.parse_args()
-    CONFIG_PATH = f"{args.path}/{args.statio_name}.json"
-    main(
-        config_path=CONFIG_PATH,
-        video_identifier=args.video_identifier,
-        save_image=args.save,
-    )
+    typer.run(main)

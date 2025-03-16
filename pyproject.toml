@@ -13,7 +13,16 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "dvc-gdrive>=3.0.1",
+    "ipython>=8.18.1",
+    "matplotlib>=3.9.4",
+    "opencv-stubs>=0.0.11",
+    "pyfzf>=0.3.1",
+    "pyqt5>=5.15.11",
     "requests>=2.31.0",
+    "tk>=0.1.0",
+    "typer>=0.15.2",
+    "types-pyyaml>=6.0.12.20241230",
     "types-requests>=2.31.0.20240125",
 ]
 docs = [
@@ -28,3 +37,7 @@ plots = [
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
+
+[tool.ruff]
+# Set the maximum line length to 79.
+line-length = 79
