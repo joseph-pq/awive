@@ -212,6 +212,22 @@ class Formatter:
         self._rotation_matrix = self._get_rotation_matrix()
         return image
 
+    def apply_resolution(self, image: np.ndarray) -> np.ndarray:
+        """Apply resolution reduction to the image.
+
+        Args:
+            image: The input image to reduce resolution.
+
+        Returns:
+            The image with reduced resolution.
+        """
+        return cv2.resize(
+            image,
+            (0, 0),
+            fx=self._config.otv.resolution,
+            fy=self._config.otv.resolution,
+        )
+
     def apply_distortion_correction(self, image: np.ndarray) -> np.ndarray:
         """Undistort image using Ground Control Points (GCP).
 
