@@ -107,9 +107,12 @@ class OTV:
         self,
         config_: Config,
         prev_gray: NDArray,
+        formatter: Formatter,
+        lines: list[int],
     ) -> None:
         root_config = config_
         config = config_.otv
+        self.formatter = formatter
         self.config = config
         self._partial_max_angle = config.partial_max_angle
         self._partial_min_angle = config.partial_min_angle
@@ -119,7 +122,7 @@ class OTV:
         self._max_features = config.max_features
         self._max_level = config.lk.max_level
         self._step = config.region_step
-        self._resolution = config.resolution
+        self._resolution = formatter.resolution
         self._pixel_to_real = 1 / root_config.preprocessing.ppm
         self.max_distance = (
             self._max_level * (2 * config.lk.radius + 1) / self._resolution
@@ -133,7 +136,9 @@ class OTV:
             root_config.preprocessing.roi[1][0]
             - root_config.preprocessing.roi[1][1]
         )
-        self.regions_heights = config.lines
+        self.regions_heights = [
+            int(line * formatter.resolution) for line in lines
+        ]
         self.region_range = config_.otv.lines_width
         if config.mask_path is not None:
             self._mask: NDArray[np.uint8] | None = (
@@ -228,7 +233,7 @@ class OTV:
         return kps, status
 
     def run(
-        self, loader: Loader, formatter: Formatter, show_video=False
+        self, loader: Loader, show_video=False
     ) -> dict[str, dict[str, float]]:
         """Execute OTV and get velocimetry"""
         # initialze parametrers
@@ -277,9 +282,9 @@ class OTV:
             if curr_frame is None:
                 # TODO: This is not the best way to handle this
                 break
-            curr_frame = formatter.apply_distortion_correction(curr_frame)
-            curr_frame = formatter.apply_roi_extraction(curr_frame)
-            curr_frame = formatter.apply_resolution(curr_frame)
+            curr_frame = self.formatter.apply_distortion_correction(curr_frame)
+            curr_frame = self.formatter.apply_roi_extraction(curr_frame)
+            curr_frame = self.formatter.apply_resolution(curr_frame)
             curr_frame = self._apply_mask(curr_frame)
 
             # get features as a list of KeyPoints
@@ -510,8 +515,13 @@ def run_otv(
     prev_gray = formatter.apply_distortion_correction(image)
     prev_gray = formatter.apply_roi_extraction(prev_gray)
     prev_gray = formatter.apply_resolution(prev_gray)
-    otv = OTV(config, prev_gray)
-    return otv.run(loader, formatter, show_video), prev_gray
+    otv = OTV(
+        config_=config,
+        prev_gray=prev_gray,
+        formatter=formatter,
+        lines=config.lines,
+    )
+    return otv.run(loader, show_video), prev_gray
 
 
 if __name__ == "__main__":

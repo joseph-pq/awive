@@ -38,6 +38,7 @@ class Formatter:
         """
         # read configuration file
         self._config: Config = config
+        self.resolution = config.preprocessing.resolution
         self.ppm = config.preprocessing.ppm
         sample_image = self._get_sample_image(self._config)
         if sample_image is None:
@@ -222,13 +223,13 @@ class Formatter:
         Returns:
             The image with reduced resolution.
         """
-        if self._config.otv.resolution >= 1:
+        if self._config.preprocessing.resolution >= 1:
             return image
         return cv2.resize(
             image,
             (0, 0),
-            fx=self._config.otv.resolution,
-            fy=self._config.otv.resolution,
+            fx=self._config.preprocessing.resolution,
+            fy=self._config.preprocessing.resolution,
         )
 
     def apply_distortion_correction(self, image: np.ndarray) -> np.ndarray:

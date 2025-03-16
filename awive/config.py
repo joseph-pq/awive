@@ -143,6 +143,13 @@ class PreProcessing(BaseModel):
             "resolution, but the resolution that will be forced."
         ),
     )
+    resolution: float = Field(
+        1,
+        description=(
+            "Resolution to process the video. Use this feature when the image"
+            " resolution is too big"
+        ),
+    )
 
 
 class Dataset(BaseModel):
@@ -207,20 +214,13 @@ class Otv(BaseModel):
         description=(
             "Minimum trajectory distances (pixeles) of tracked features "
             "from beginning of the trajectory to the end"
-        )
+        ),
     )
     max_features: int = Field(
         7000, description="Maximum number of features to track between frames"
     )
     region_step: int = Field(
         240, description="Step for the region. This feature is not used."
-    )
-    resolution: float = Field(
-        1,
-        description=(
-            "Resolution to process the video. Use this feature when the image"
-            " resolution is too big"
-        ),
     )
     features: OtvFeatures = Field(
         default_factory=lambda: OtvFeatures(),
@@ -230,32 +230,23 @@ class Otv(BaseModel):
         default_factory=lambda: OtvLucasKanade(),
         description="Lucas Kanade configuration",
     )
-    lines: list[int] = Field(
-        ...,
-        description="Height of the lines to extract the velocity vector",
-    )
     lines_width: int = Field(
         ...,
         description="Width of the lines to extract the velocity vector",
     )
 
 
-class ConfigStivLine(BaseModel):
-    """Config for STIV line."""
-
-    start: list[int]
-    end: list[int]
-
-
 class Stiv(BaseModel):
     """Configuration STIV."""
 
-    window_shape: list[int]
+    window_shape: tuple[int, int] = Field(
+        default=(51, 51), description="Window shape. only using in GMT"
+    )
     filter_window: int
-    overlap: int
-    ksize: int
+    overlap: int = Field(default=31, description="Overlap. only used in GMT")
+    ksize: int = Field(default=7, description="Kernel size. only used in GMT")
     polar_filter_width: int
-    lines: list[ConfigStivLine]
+    lines_range: list[tuple[int, int]]
 
 
 class WaterLevel(BaseModel):
@@ -275,3 +266,7 @@ class Config(BaseModel):
     stiv: Stiv | None = None
     preprocessing: PreProcessing
     water_level: WaterLevel | None = None
+    lines: list[int] = Field(
+        ...,
+        description="Height of the lines to extract the velocity vector",
+    )
