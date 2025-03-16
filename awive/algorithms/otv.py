@@ -55,11 +55,22 @@ def _get_velocity(
     return get_magnitude(kp1, kp2) * pixels_to_meters * fps / frames
 
 
-def reject_outliers(data: NDArray[np.float32], m=2.0):
-    d = np.abs(data - np.median(data))
-    mdev = np.median(d)
-    s = d / mdev if mdev else 0.0
-    return data[s < m]
+def reject_outliers(data: NDArray[np.float32], m=2.0) -> NDArray[np.float32]:
+    """Reject outliers from a dataset based on the median absolute deviation.
+
+    Args:
+        data: A numpy array of float32 values.
+        m: The threshold multiplier for determining outliers.
+
+    Returns:
+        A numpy array with outliers removed.
+    """
+    deviation = np.abs(data - np.median(data))
+    median_deviation = np.median(deviation)
+    if median_deviation != 0:
+        return data[(deviation / median_deviation) < m]
+    else:
+        return data
 
 
 def compute_stats(velocity: list[list[float]], hist=False):
@@ -281,7 +292,7 @@ class OTV:
                     keypoints_current.extend(keypoints[-keypoints_to_add:])
                     keypoints_start.extend(keypoints[-keypoints_to_add:])
 
-            LOG.debug("Analyzing frame:", loader.index)
+            LOG.debug(f"Analyzing frame: {loader.index}")
             if previous_frame is not None:
                 pts1 = cv2.KeyPoint_convert(keypoints_current)
                 pts2, st, _ = cv2.calcOpticalFlowPyrLK(
@@ -370,7 +381,7 @@ class OTV:
                 keypoints_predicted = keypoints_predicted[:k]
                 time = time[:k]
 
-                LOG.debug("number of trajectories:", len(keypoints_current))
+                LOG.debug(f"number of trajectories: {len(keypoints_current)}")
 
                 if show_video:
                     color_frame = cv2.cvtColor(
@@ -384,7 +395,7 @@ class OTV:
                     ).astype(np.float32)
                     imshow(output, "sparse optical flow", handle_destroy=False)
                     if cv2.waitKey(10) & 0xFF == ord("q"):
-                        LOG.info("Breaking")
+                        LOG.debug("Breaking")
                         break
 
             previous_frame = current_frame.copy()
@@ -404,15 +415,15 @@ class OTV:
         if show_video:
             cv2.destroyAllWindows()
 
-        LOG.info("Computing stats")
+        LOG.debug("Computing stats")
         avg, max_, min_, std_dev, count = compute_stats(velocity, show_video)
-        LOG.debug("avg:", round(avg, 4))
-        LOG.debug("max:", round(max_, 4))
-        LOG.debug("min:", round(min_, 4))
-        LOG.debug("std_dev:", round(std_dev, 2))
-        LOG.debug("count:", count)
+        LOG.debug(f"avg: {round(avg, 4)}")
+        LOG.debug(f"max: {round(max_, 4)}")
+        LOG.debug(f"min: {round(min_, 4)}")
+        LOG.debug(f"std_dev: {round(std_dev, 2)}")
+        LOG.debug(f"count: {count}")
 
-        LOG.info("Computing stats by region")
+        LOG.debug("Computing stats by region")
         out_json: dict[str, dict[str, float]] = {}
         for i, (sv, position) in enumerate(zip(regions, self._regions)):
             out_json[str(i)] = {}
@@ -426,7 +437,7 @@ class OTV:
             out_json[str(i)]["velocity"] = m
             out_json[str(i)]["count"] = len(t)
             out_json[str(i)]["position"] = position
-        LOG.info("Finished")
+        LOG.debug("Finished")
         return out_json
 
 
@@ -486,14 +497,8 @@ def run_otv(
         raise ValueError("No image found")
     prev_gray = formatter.apply_distortion_correction(image)
     prev_gray = formatter.apply_roi_extraction(prev_gray)
-    if config.otv.resolution < 1:
-        prev_gray = cv2.resize(
-            prev_gray,
-            (0, 0),
-            fx=config.otv.resolution,
-            fy=config.otv.resolution,
-        )
-    otv = OTV(config, prev_gray, debug)
+    prev_gray = formatter.apply_resolution(prev_gray)
+    otv = OTV(config, prev_gray)
     return otv.run(loader, formatter, show_video), prev_gray
 
 

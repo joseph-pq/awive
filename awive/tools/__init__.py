@@ -9,7 +9,6 @@ def imshow(img: NDArray, title: str = "Image", handle_destroy: bool = True) -> N
         new_width = 1024
         new_height = int(img.shape[0] / img.shape[1] * new_width)
     img = cv2.resize(img, (new_width, new_height))
-    print(f"{img.shape=}")
 
     cv2.imshow(title, img)
     if handle_destroy:

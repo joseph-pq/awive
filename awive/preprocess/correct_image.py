@@ -221,6 +221,8 @@ class Formatter:
         Returns:
             The image with reduced resolution.
         """
+        if self._config.otv.resolution >= 1:
+            return image
         return cv2.resize(
             image,
             (0, 0),
