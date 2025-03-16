@@ -38,6 +38,7 @@ class Formatter:
         """
         # read configuration file
         self._config: Config = config
+        self.ppm = config.preprocessing.ppm
         sample_image = self._get_sample_image(self._config)
         if sample_image is None:
             raise VideoSourceError("No sample image found")

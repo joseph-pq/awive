@@ -1,19 +1,20 @@
 """Space Time Image Velocimetry."""
 
-from typing import Path
-import argparse
-import json
+from pathlib import Path
 import math
 import time
 
 import cv2
 import numpy as np
+from awive.config import Config
 from numpy.typing import NDArray
 
-from awive.loader import get_loader
+from awive.loader import make_loader, Loader
+from awive.config import Stiv as StivConfig
 from awive.preprocess.correct_image import Formatter
+import logging
 
-FOLDER_PATH = "/home/joseph/Documents/Thesis/Dataset/config"
+LOG = logging.getLogger(__name__)
 
 cnt = 0
 
@@ -21,77 +22,75 @@ cnt = 0
 class STIV:
     """Space Time Image Velocimetry."""
 
-    def __init__(self, config_path: str, video_identifier: str, debug=0):
+    def __init__(
+        self,
+        config: StivConfig,
+        loader: Loader,
+        formatter: Formatter,
+        images_dp: Path | None = None,
+    ):
         """Initialize STIV."""
-        with open(config_path) as json_file:
-            root_config = json.load(json_file)[video_identifier]
-            self._config = root_config["stiv"]
-        self._debug = debug
         # Shall be initialized later
-        self._fps = None
-
-        self._stis: list[list[NDArray]] = []
-        self._stis_qnt = len(self._config["lines"])
-        self._ksize = self._config["ksize"]
+        self.images_dp = images_dp
+        self.config = config
+        self.loader = loader
+        self.formatter = formatter
+        self.stis_qnt = len(self.config.lines)
         t0 = time.process_time()
-        self._generate_st_images(config_path, video_identifier)
+        self.stis: list[NDArray] = self.generate_st_images()
         t1 = time.process_time()
-        self._overlap = self._config["overlap"]
-
-        self._ppm = root_config["PPM"]
-        if self._debug >= 1:
-            print("frames per second:", self._fps)
-            print("pixels per meter", self._ppm)
+        LOG.debug(f"Number of frames: {self.loader.total_frames}")
+        LOG.debug(f"Frames per second: {self.loader.fps}")
+        LOG.debug(f"Pixels per meter: {self.formatter.ppm}")
 
         # create filter window
-        w_size = self._config["filter_window"]
-        W_mn = (1 - np.cos(2 * math.pi * np.arange(w_size) / w_size)) / 2
-        W_mn = np.tile(W_mn, (w_size, 1))
-        self._filter_win = W_mn * W_mn.T
+        w_size = self.config.filter_window
+        w_mn = (1 - np.cos(2 * math.pi * np.arange(w_size) / w_size)) / 2
+        w_mn = np.tile(w_mn, (w_size, 1))
+        self._filter_win = w_mn * w_mn.T
 
         # vertical and horizontal filter width
         self._vh_filter = 1
+        self._polar_filter_width = self.config.polar_filter_width
+        LOG.debug("- generate_st_images: {t1 - t0}")
 
-        self._polar_filter_width = self._config["polar_filter_width"]
-        print("- generate_st_images\t", t1 - t0)
+    def save(self, filename: str, image: NDArray):
+        if self.images_dp is not None:
+            np.save(str(self.images_dp / filename), image)
 
-    def _get_velocity(self, angle):
+    def get_velocity(self, angle: float):
         """Given STI pattern angle, calculate velocity.
-        :param angle: angle in radians
+        Args:
+            angle: angle in radians
         """
-        velocity = math.tan(angle) * self._fps / self._ppm
+        velocity = math.tan(angle) * self.loader.fps / self.formatter.ppm
         return velocity
 
-    def _generate_st_images(self, config_path: Path):
-        # generate space time images
-        loader = get_loader(config_path)
-        if self._debug >= 1:
-            print("number of frames:", loader.total_frames)
-        formatter = Formatter(config_path)
-        self._fps = loader.fps
-
+    def generate_st_images(self):
         # initialize set of sti images
-        for _ in range(self._stis_qnt):
-            self._stis.append([])
+        stis = []
+        for _ in range(self.stis_qnt):
+            stis.append([])
 
         # generate all lines
-        coordinates_list = self._config["lines"]
-        while loader.has_images():
-            image = loader.read()
-            image = formatter.apply_distortion_correction(image)
-            image = formatter.apply_roi_extraction(
-                image, resize_factor=self.config.otv.resize_factor
-            )
+        while self.loader.has_images():
+            image = self.loader.read()
+            if image is None:
+                break
+            image = self.formatter.apply_distortion_correction(image)
+            image = self.formatter.apply_roi_extraction(image)
+            image = self.formatter.apply_resolution(image)
 
-            for i, coordinates in enumerate(coordinates_list):
-                start = coordinates["start"]
-                end = coordinates["end"]
+            for i, coordinates in enumerate(self.config.lines):
+                start = coordinates.start
+                end = coordinates.end
                 row = image[start[0], start[1] : end[1]]
-                self._stis[i].append(row)
+                stis[i].append(row)
 
-        for i in range(self._stis_qnt):
-            self._stis[i] = np.array(self._stis[i])
-            np.save(f"images/stiv/sti_{i:04}.npy", self._stis[i])
+        for i in range(self.stis_qnt):
+            stis[i] = np.array(stis[i])
+            self.save(f"sti_{i:04}.npy", stis[i])
+        return stis
 
     @staticmethod
     def _get_main_freqs(isd):
@@ -125,19 +124,13 @@ class STIV:
         mask = self._apply_angle(mask, main_freqs[1], isd)
         return mask
 
-    @property
-    def stis(self):
-        """Return Space-Time image."""
-        return self._stis
-
     def _process_sti(self, image: np.ndarray):
         """Process sti image."""
         # image = cv2.medianBlur(image, 5)
-        sobelx = cv2.Sobel(image, cv2.CV_64F, 0, 1, ksize=self._ksize)
-        sobelt = cv2.Sobel(image, cv2.CV_64F, 1, 0, ksize=self._ksize)
+        sobelx = cv2.Sobel(image, cv2.CV_64F, 0, 1, ksize=self.config.ksize)
+        sobelt = cv2.Sobel(image, cv2.CV_64F, 1, 0, ksize=self.config.ksize)
         if sobelx.sum() == 0 and sobelt.sum() == 0:
-            if self._debug >= 1:
-                print("WARNING: gradients are zero")
+            LOG.warning("gradients are zero")
             return 0, 0
 
         Jxx = (sobelx * sobelx).sum()
@@ -216,17 +209,16 @@ class STIV:
             sti = sti[:, :x]
         else:
             sti = sti[:x, :]
-        if self._debug >= 1:
-            print("size before reshape:", x)
+        LOG.debug(f"size before reshape: {x}")
         # the example of the paper uses 600x600, so do I
         sti = cv2.resize(sti, (600, 600), interpolation=cv2.INTER_LINEAR)
-        np.save(f"images/stiv/f_{cnt}_0.npy", sti)
+        self.save(f"f_{cnt}_0.npy", sti)
 
         # WINDOW FUNCTION FILTERING
         size = sti.shape
         # TODO: Use a better 2d convolution function
         sti = self._conv2d(sti, self._filter_win)
-        np.save(f"images/stiv/f_{cnt}_1.npy", sti)
+        self.save(f"f_{cnt}_1.npy", sti)
 
         # DETECTION OF PRINCIPAL DIRECTION OF FOURIER SPECTRUM
         sti_ft = np.abs(np.fft.fftshift(np.fft.fft2(sti)))
@@ -235,21 +227,21 @@ class STIV:
         c_y = int(sti_ft.shape[1] / 2)
         sti_ft[c_x - self._vh_filter : c_x + self._vh_filter, :] = 0
         sti_ft[:, c_y - self._vh_filter : c_y + self._vh_filter] = 0
-        np.save(f"images/stiv/f_{cnt}_2.npy", sti_ft)
+        self.save(f"f_{cnt}_2.npy", sti_ft)
         # transform to polar system
         sti_ft_polar = self._to_polar_system(sti_ft)
-        np.save(f"images/stiv/f_{cnt}_3.npy", sti_ft_polar)
+        self.save(f"f_{cnt}_3.npy", sti_ft_polar)
 
         # FILTER IN FREQUENCY DOMAIN
         polar_mask = self._generate_polar_mask(sti_ft_polar)
         sti_ft_polar = sti_ft_polar * polar_mask
-        np.save(f"images/stiv/f_{cnt}_4.npy", sti_ft_polar)
+        self.save(f"f_{cnt}_4.npy", sti_ft_polar)
 
         sti_ft_filtered = self._to_polar_system(sti_ft_polar, "invert")
-        np.save(f"images/stiv/f_{cnt}_5.npy", sti_ft_filtered)
+        self.save(f"f_{cnt}_5.npy", sti_ft_filtered)
 
         sti_filtered = np.abs(np.fft.ifft2(np.fft.ifftshift(sti_ft_filtered)))
-        np.save(f"images/stiv/f_{cnt}_6.npy", sti_filtered)
+        self.save(f"f_{cnt}_6.npy", sti_filtered)
 
         sti_filtered = cv2.resize(
             sti_filtered, (size[1], size[0]), interpolation=cv2.INTER_AREA
@@ -287,24 +279,23 @@ class STIV:
 
     def _calculate_MOT_using_FFT(self, sti):
         """"""
-        np.save(f"images/stiv/g_{cnt}_0.npy", sti)
+        self.save(f"g_{cnt}_0.npy", sti)
         sti_canny = cv2.Canny(sti, 10, 10)
-        np.save(f"images/stiv/g_{cnt}_1.npy", sti_canny)
+        self.save(f"g_{cnt}_1.npy", sti_canny)
         sti_padd = self._squarify(sti_canny)
-        np.save(f"images/stiv/g_{cnt}_2.npy", sti_padd)
+        self.save(f"g_{cnt}_2.npy", sti_padd)
         sti_ft = np.abs(np.fft.fftshift(np.fft.fft2(sti_padd)))
-        np.save(f"images/stiv/g_{cnt}_3.npy", sti_ft)
+        self.save(f"g_{cnt}_3.npy", sti_ft)
         sti_ft_polar = self._to_polar_system(sti_ft)
-        np.save(f"images/stiv/g_{cnt}_4.npy", sti_ft_polar)
+        self.save(f"g_{cnt}_4.npy", sti_ft_polar)
         isd = np.sum(sti_ft_polar.T, axis=0)
         freq, _ = self._get_main_freqs(isd)
         angle0 = 2 * math.pi * freq / sti_ft_polar.shape[0]
         angle1 = 2 * math.pi * freq / sti_ft_polar.shape[1]
         angle = (angle0 + angle1) / 2
-        velocity = self._get_velocity(angle)
-        if self._debug >= 1:
-            print("angle:", round(angle, 2))
-            print("velocity:", round(velocity, 2))
+        velocity = self.get_velocity(angle)
+        LOG.debug(f"angle: {round(angle, 2)}")
+        LOG.debug(f"velocity: {round(velocity, 2)}")
         mask = np.zeros(sti.shape)
         mask = self._draw_angle(
             mask,
@@ -322,8 +313,8 @@ class STIV:
         "Development of a non-intrusive and efficient flow monitoring technique:
         The space-time image velocimetry (STIV)"
         """
-        window_width = int(self._config["window_shape"][0] / 2)
-        window_height = int(self._config["window_shape"][1] / 2)
+        window_width = int(self.config.window_shape[0] / 2)
+        window_height = int(self.config.window_shape[1] / 2)
 
         width = sti.shape[0]
         height = sti.shape[1]
@@ -346,28 +337,24 @@ class STIV:
                 angle, coherence = self._process_sti(image_window)
                 angle_accumulated += angle * coherence
                 c_total += coherence
-                if self._debug >= 2:
-                    print(
-                        (
-                            f"- at ({i}, {j}): angle = "
-                            f"- in ({s}, {e}): angle = "
-                            f"{math.degrees(angle):0.2f}, "
-                            f"coherence={coherence:0.2f}, "
-                            f"velocity={round(self._get_velocity(angle), 2)}"
-                        )
-                    )
+                LOG.debug(
+                    f"- at ({i}, {j}): angle = "
+                    f"- in ({s}, {e}): angle = "
+                    f"{math.degrees(angle):0.2f}, "
+                    f"coherence={coherence:0.2f}, "
+                    f"velocity={round(self.get_velocity(angle), 2)}"
+                )
                 mask = self._draw_angle(mask, angle, (e, s))
                 j += 1
-                e += int(self._overlap)
+                e += int(self.config.overlap)
             i += 1
-            s += int(self._overlap)
+            s += int(self.config.overlap)
 
         mean_angle = angle_accumulated / c_total
 
-        velocity = self._get_velocity(mean_angle)
-        if self._debug >= 1:
-            print("weighted mean angle:", round(math.degrees(mean_angle), 2))
-            print("velocity", round(velocity, 2))
+        velocity = self.get_velocity(mean_angle)
+        LOG.debug(f"weighted mean angle: {round(math.degrees(mean_angle), 2)}")
+        LOG.debug(f"velocity {round(velocity, 2)}")
 
         return velocity, mask
 
@@ -375,9 +362,8 @@ class STIV:
         """Execute"""
         global cnt
         velocities = []
-        for idx, sti in enumerate(self._stis):
-            if self._debug >= 1:
-                print(f"space time image {idx} shape: {sti.shape}")
+        for idx, sti in enumerate(self.stis):
+            LOG.debug(f"space time image {idx} shape: {sti.shape}")
             cnt = idx
             sti = self._filter_sti(sti)
             # velocity, mask = self._calculate_MOT_using_GMT(sti)
@@ -385,7 +371,7 @@ class STIV:
             velocities.append(velocity)
 
             final_image = sti + mask
-            np.save(f"images/stiv/stiv_final_{idx:02}.npy", final_image)
+            self.save(f"stiv_final_{idx:02}.npy", final_image)
             cv2.imwrite(
                 f"images/stiv/stiv_final_{idx:02}.png",
                 self._generate_final_image(sti, mask),
@@ -402,55 +388,39 @@ class STIV:
             out_json[str(i)] = {}
             out_json[str(i)]["velocity"] = vel
         total /= len(velocities)
-        if self._debug >= 1:
-            print("Total mean velocity:", round(total, 2))
+        LOG.debug(f"Total mean velocity: {round(total, 2)}")
         return out_json
 
 
-def main(config_path: str, video_identifier: str, show_image=False, debug=0):
+def main(
+    config_fp: Path,
+    show_image: bool = False,
+    debug: bool = False,
+    images_dp: Path | None = None,
+):
     """Execute example of STIV usage."""
+    logging.basicConfig(
+        level=logging.INFO if not debug else logging.DEBUG,
+        format="%(asctime)s | %(levelname).1s | %(name).20s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     t0 = time.process_time()
-    stiv = STIV(config_path, video_identifier, debug)
+    config = Config.from_fp(config_fp)
+    if config.stiv is None:
+        raise ValueError("STIV configuration not found")
+    loader: Loader = make_loader(config.dataset)
+    formatter = Formatter(config)
+    stiv = STIV(config.stiv, loader, formatter, images_dp)
     t1 = time.process_time()
     ret = stiv.run(show_image)
     t2 = time.process_time()
-
-    print("- STIV\t", t1 - t0)
-    print("- stiv.run\t", t2 - t1)
+    print(ret)
+    LOG.info(f"STIV {t1 - t0}")
+    LOG.info(f"stiv.run {t2 - t1}")
     return ret
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "statio_name", help="Name of the station to be analyzed"
-    )
-    parser.add_argument(
-        "video_identifier", help="Index of the video of the json config file"
-    )
-    parser.add_argument(
-        "-p",
-        "--path",
-        help="Path to the config folder",
-        type=str,
-        default=FOLDER_PATH,
-    )
-    parser.add_argument(
-        "-d", "--debug", help="Activate debug mode", type=int, default=0
-    )
-    parser.add_argument(
-        "-i",
-        "--image",
-        action="store_true",
-        help="Show every space time image",
-    )
-    args = parser.parse_args()
-    CONFIG_PATH = f"{args.path}/{args.statio_name}.json"
-    print(
-        main(
-            config_path=CONFIG_PATH,
-            video_identifier=args.video_identifier,
-            show_image=args.image,
-            debug=args.debug,
-        )
-    )
+    import typer
+
+    typer.run(main)

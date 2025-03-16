@@ -256,7 +256,6 @@ class Stiv(BaseModel):
     ksize: int
     polar_filter_width: int
     lines: list[ConfigStivLine]
-    resize_factor: float | None = None
 
 
 class WaterLevel(BaseModel):
