@@ -2,6 +2,7 @@
 
 import argparse
 import math
+import itertools
 import random
 from pathlib import Path
 
@@ -33,7 +34,7 @@ def get_angle(kp1, kp2):
     )
 
 
-def _get_velocity(
+def compute_velocity(
     kp1: cv2.KeyPoint,
     kp2: cv2.KeyPoint,
     pixels_to_meters: float,
@@ -82,7 +83,7 @@ def compute_stats(velocity: list[list[float]], hist=False):
     Returns:
         Tuple of mean, max, min, std deviation, and count of velocities
     """
-    v = np.array(velocity).flatten()
+    v = np.array(list(itertools.chain(*velocity)))
     if v.size == 0:
         return 0, 0, 0, 0, 0
     v = reject_outliers(v)
@@ -109,6 +110,7 @@ class OTV:
     ) -> None:
         root_config = config_
         config = config_.otv
+        self.config = config
         self._partial_max_angle = config.partial_max_angle
         self._partial_min_angle = config.partial_min_angle
         self._final_max_angle = config.final_max_angle
@@ -131,8 +133,8 @@ class OTV:
             root_config.preprocessing.roi[1][0]
             - root_config.preprocessing.roi[1][1]
         )
-        self._regions = config.lines
-        self.lines_width = config_.otv.lines_width
+        self.regions_heights = config.lines
+        self.region_range = config_.otv.lines_width
         if config.mask_path is not None:
             self._mask: NDArray[np.uint8] | None = (
                 cv2.imread(str(config.mask_path), 0) > 1
@@ -152,22 +154,10 @@ class OTV:
         else:
             self._mask = None
 
-        winsize = config.lk.winsize
-
-        self.lk_params = {
-            "winSize": (winsize, winsize),
-            "maxLevel": self._max_level,
-            "criteria": (
-                cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT,
-                config.lk.max_count,
-                config.lk.epsilon,
-            ),
-            "flags": cv2.OPTFLOW_LK_GET_MIN_EIGENVALS,
-            "minEigThreshold": config.lk.min_eigen_threshold,
-        }
+        self.winsize = config.lk.winsize
         self.prev_gray = prev_gray
 
-    def _partial_filtering(self, kp1, kp2):
+    def valid_displacement(self, kp1, kp2):
         magnitude = get_magnitude(
             kp1, kp2
         )  # only to limit the research window
@@ -182,7 +172,7 @@ class OTV:
             return True
         return False
 
-    def _final_filtering(self, kp1: cv2.KeyPoint, kp2: cv2.KeyPoint):
+    def valid_trajectory(self, kp1: cv2.KeyPoint, kp2: cv2.KeyPoint):
         """Final filter of keypoints"""
         magnitude = get_magnitude(kp1, kp2)
         if magnitude < self._final_min_distance:
@@ -196,7 +186,7 @@ class OTV:
             return True
         return False
 
-    def _apply_mask(self, image):
+    def _apply_mask(self, image) -> NDArray:
         if self._mask is not None:
             image = image * self._mask
         return image
@@ -212,34 +202,59 @@ class OTV:
                 ret.append([])
         return ret
 
+    def predict_kps(
+        self, prev_frame: NDArray, curr_frame: NDArray, kps: list[cv2.KeyPoint]
+    ) -> tuple[list[cv2.KeyPoint], list[bool]]:
+        """Predict keypoints using Lucas-Kanade"""
+        pts2, status, _ = cv2.calcOpticalFlowPyrLK(
+            prev_frame,
+            curr_frame,
+            cv2.KeyPoint_convert(kps),
+            None,
+            winSize=(self.winsize, self.winsize),
+            maxLevel=self._max_level,
+            criteria=(
+                cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT,
+                self.config.lk.max_count,
+                self.config.lk.epsilon,
+            ),
+            flags=cv2.OPTFLOW_LK_GET_MIN_EIGENVALS,
+            minEigThreshold=self.config.lk.min_eigen_threshold,
+        )
+        kps = [
+            cv2.KeyPoint(pt[0], pt[1], 1.0)  # type: ignore[call-arg]
+            for pt in pts2
+        ]
+        return kps, status
+
     def run(
         self, loader: Loader, formatter: Formatter, show_video=False
     ) -> dict[str, dict[str, float]]:
         """Execute OTV and get velocimetry"""
         # initialze parametrers
         detector = cv2.FastFeatureDetector_create()
-        previous_frame = None
-        keypoints_current: list[
+        prev_frame = None
+        prev_kps: list[cv2.KeyPoint] = []  # keypoints at the current frame
+        traj_start_kps: list[
             cv2.KeyPoint
-        ] = []  # keypoints at the current frame
-        keypoints_start = []  # keypoints at the start of the trajectory
-        time = []  # Frame index of the start of the trajectory
-        keypoints_predicted: list[
-            cv2.KeyPoint
-        ] = []  # keypoints predicted by LK
+        ] = []  # keypoints at the start of the trajectory
+        traj_start_idx: list[
+            int
+        ] = []  # Frame index of the start of the trajectory
+        curr_kps: list[cv2.KeyPoint] = []  # keypoints predicted by LK
         masks: list[NDArray] = []
 
-        valid: list[list[bool]] = [
-            []
-        ] * loader.total_frames  # valid trajectory
-        velocity_mem: list[list[int]] = [[]] * loader.total_frames
-        velocity: list[list[float]] = [[]] * loader.total_frames
-        angle: list[list[float]] = [[]] * loader.total_frames
-        distance: list[list[float]] = [[]] * loader.total_frames
-        path: list[list[int]] = [[]] * loader.total_frames
-        keypoints_mem_current: list[list[cv2.KeyPoint]] = []
-        keypoints_mem_predicted: list[list[cv2.KeyPoint]] = []
-        regions: list[list[float]] = [[]] * len(self._regions)
+        # valid: list[list[bool]] = [
+        #     []
+        # ] * loader.total_frames
+        # velocity_mem: list[list[float]] = [[] for _ in range(loader.total_frames)]
+        velocities: list[list[float]] = [[] for _ in range(loader.total_frames)]
+        # angles: list[list[float]] = [[] for _ in range(loader.total_frames)]
+        # distance: list[list[float]] = [[] for _ in range(loader.total_frames)]
+        path: list[list[int]] = [[] for _ in range(loader.total_frames)]
+        # keypoints_mem_current: list[list[cv2.KeyPoint]] = []
+        # keypoints_mem_predicted: list[list[cv2.KeyPoint]] = []
+        regions: list[list[float]] = [[] for _ in range(len(self.regions_heights))]
 
         # traj_map must have the size of the image after all preprocessing
         traj_map = np.zeros_like(self.prev_gray)
@@ -254,143 +269,126 @@ class OTV:
 
         while loader.has_images():
             # get current frame
-            current_frame = loader.read()
-            if current_frame is None:
+            curr_frame = loader.read()
+            if curr_frame is None:
                 # TODO: This is not the best way to handle this
                 break
-            current_frame = formatter.apply_distortion_correction(
-                current_frame
-            )
-            current_frame = formatter.apply_roi_extraction(current_frame)
-            current_frame = cv2.resize(
-                current_frame,
-                (0, 0),
-                fx=self._resolution,
-                fy=self._resolution,
-            )
-            current_frame = self._apply_mask(current_frame)
+            curr_frame = formatter.apply_distortion_correction(curr_frame)
+            curr_frame = formatter.apply_roi_extraction(curr_frame)
+            curr_frame = formatter.apply_resolution(curr_frame)
+            curr_frame = self._apply_mask(curr_frame)
 
             # get features as a list of KeyPoints
             keypoints: list[cv2.KeyPoint] = list(
-                detector.detect(current_frame, None)
+                detector.detect(curr_frame, None)
             )
             random.shuffle(keypoints)
 
             # Add keypoints in lists
             keypoints_to_add = min(
-                self._max_features - len(keypoints_current), len(keypoints)
+                self._max_features - len(prev_kps), len(keypoints)
             )
             if keypoints_to_add != 0:
-                time.extend([loader.index] * keypoints_to_add)
-                valid[loader.index].extend([False] * keypoints_to_add)
-                velocity_mem[loader.index].extend([0] * keypoints_to_add)
-                if previous_frame is None:
-                    keypoints_current.extend(keypoints[:keypoints_to_add])
-                    keypoints_start.extend(keypoints[:keypoints_to_add])
+                traj_start_idx.extend([loader.index] * keypoints_to_add)
+                # valid[loader.index].extend([False] * keypoints_to_add)
+                # velocity_mem[loader.index].extend([0] * keypoints_to_add)
+                if prev_frame is None:
+                    prev_kps.extend(keypoints[:keypoints_to_add])
+                    traj_start_kps.extend(keypoints[:keypoints_to_add])
                     path[loader.index].extend(range(keypoints_to_add))
                 else:
-                    keypoints_current.extend(keypoints[-keypoints_to_add:])
-                    keypoints_start.extend(keypoints[-keypoints_to_add:])
+                    prev_kps.extend(keypoints[-keypoints_to_add:])
+                    traj_start_kps.extend(keypoints[-keypoints_to_add:])
 
             LOG.debug(f"Analyzing frame: {loader.index}")
-            if previous_frame is not None:
-                pts1 = cv2.KeyPoint_convert(keypoints_current)
-                pts2, st, _ = cv2.calcOpticalFlowPyrLK(
-                    previous_frame, current_frame, pts1, None, **self.lk_params
+            if prev_frame is not None:
+                curr_kps, kps_status = self.predict_kps(
+                    prev_frame, curr_frame, prev_kps
                 )
 
-                # add predicted by Lucas-Kanade new keypoints
-                keypoints_predicted = [
-                    cv2.KeyPoint(pt2[0], pt2[1], 1.0)  # type: ignore[arg-type]
-                    for pt2 in pts2
-                ]
+                k = 0  # valid keypoints counter
 
-                k = 0
-
-                for i, keypoint in enumerate(keypoints_current):
-                    valid_displacement_vector = self._partial_filtering(
-                        keypoint, keypoints_predicted[i]
-                    )
-                    # Filter vectors of previous to current frame
-                    if not (st[i] and valid_displacement_vector):
-                        valid_displacement_trajectory = self._final_filtering(
-                            keypoints_start[i], keypoints_current[i]
-                        )
-                        # Filter trajectory vectors
-                        if valid_displacement_trajectory:
-                            velocity_i = _get_velocity(
-                                keypoints_start[i],
-                                keypoints_current[i],
-                                self._pixel_to_real / self._resolution,
-                                loader.index - time[i],
-                                loader.fps,
-                            )
-                            angle_i = get_angle(
-                                keypoints_start[i], keypoints_current[i]
-                            )
-
-                            xx0 = int(keypoints_start[i].pt[1])  # type: ignore[attr-defined]
-                            yy0 = int(keypoints_start[i].pt[0])  # type: ignore[attr-defined]
-                            traj_map[xx0][yy0] += 100
-                            # sub-region computation
-                            # module_start = int(keypoints_start[i].pt[1] /
-                            #         self._step)
-                            # module_current = int(keypoints_current[i].pt[1] /
-                            #         self._step)
-                            # if module_start == module_current:
-                            # subregion_velocity[module_start].append(velocity_i)
-                            # subregion_trajectories[module_start] += 1
-
-                            for r_idx, region in enumerate(self._regions):
-                                if abs(xx0 - region) < self.lines_width:
-                                    regions[r_idx].append(velocity_i)
-
-                            # update storage
-                            pos = i
-                            j = loader.index - 1
-                            while j >= time[i]:
-                                valid[j][pos] = True
-                                velocity_mem[j][pos] = velocity_i
-                                pos = path[j][pos]
-                                j -= 1
-
-                            velocity[loader.index].append(velocity_i)
-                            angle[loader.index].append(angle_i)
-                            distance[loader.index].append(
-                                velocity_i
-                                * (loader.index - time[i])
-                                / loader.fps
-                            )
-
+                for i in range(len(prev_kps)):
+                    # Check if vector is valid
+                    if kps_status[i] and self.valid_displacement(
+                        prev_kps[i], curr_kps[i]
+                    ):
+                        # Trajectory didn't finished. Thus, keep its data
+                        prev_kps[k] = prev_kps[i]
+                        curr_kps[k] = curr_kps[i]
+                        traj_start_kps[k] = traj_start_kps[i]
+                        traj_start_idx[k] = traj_start_idx[i]
+                        k += 1
+                        # path[loader.index].append(i)
+                        # velocity_mem[loader.index].append(0)
+                        # valid[loader.index].append(False)
                         continue
 
-                    # Add new displacement vector
-                    keypoints_current[k] = keypoints_current[i]
-                    keypoints_start[k] = keypoints_start[i]
-                    keypoints_predicted[k] = keypoints_predicted[i]
-                    path[loader.index].append(i)
-                    velocity_mem[loader.index].append(0)
-                    valid[loader.index].append(False)
-                    time[k] = time[i]
-                    k += 1
+                    # If vector is invalid, finish trajectory and process it.
+                    # Check valid trajectory
+                    if not self.valid_trajectory(
+                        traj_start_kps[i], curr_kps[i]
+                    ):
+                        continue
+                    # Compute velocity in valid trajectory
+                    velocity = compute_velocity(
+                        traj_start_kps[i],
+                        curr_kps[i],
+                        self._pixel_to_real / self._resolution,
+                        loader.index - traj_start_idx[i],
+                        loader.fps,
+                    )
+                    # angle = get_angle(traj_start_kps[i], curr_kps[i])
+
+                    # sub-region computation
+                    # module_start = int(keypoints_start[i].pt[1] /
+                    #         self._step)
+                    # module_current = int(keypoints_current[i].pt[1] /
+                    #         self._step)
+                    # if module_start == module_current:
+                    # subregion_velocity[module_start].append(velocity_i)
+                    # subregion_trajectories[module_start] += 1
+
+                    # Add velocity to the trajectory map and regions
+                    start_x = int(traj_start_kps[i].pt[1])  # type: ignore[attr-defined]
+                    start_y = int(traj_start_kps[i].pt[0])  # type: ignore[attr-defined]
+                    traj_map[start_x][start_y] += 100
+                    for r_idx, region_x in enumerate(self.regions_heights):
+                        if abs(start_x - region_x) < self.region_range:
+                            regions[r_idx].append(velocity)
+
+                    # update storage
+                    # pos = i
+                    # j = loader.index - 1
+                    # while j >= traj_start_idx[i]:
+                    #     valid[j][pos] = True
+                    #     velocity_mem[j][pos] = velocity
+                    #     pos = path[j][pos]
+                    #     j -= 1
+
+                    velocities[loader.index].append(velocity)
+                    # angles[loader.index].append(angle)
+                    # distance[loader.index].append(
+                    #     velocity
+                    #     / (loader.index - traj_start_idx[i])
+                    #     / loader.fps
+                    # )
 
                 # Only keep until the kth keypoint in order to filter invalid
                 # vectors
-                keypoints_current = keypoints_current[:k]
-                keypoints_start = keypoints_start[:k]
-                keypoints_predicted = keypoints_predicted[:k]
-                time = time[:k]
+                prev_kps = prev_kps[:k]
+                curr_kps = curr_kps[:k]
+                traj_start_kps = traj_start_kps[:k]
+                traj_start_idx = traj_start_idx[:k]
 
-                LOG.debug(f"number of trajectories: {len(keypoints_current)}")
+                LOG.debug(f"number of trajectories: {k}")
 
                 if show_video:
-                    color_frame = cv2.cvtColor(
-                        current_frame, cv2.COLOR_GRAY2RGB
-                    )
+                    color_frame = cv2.cvtColor(curr_frame, cv2.COLOR_GRAY2RGB)
                     output: NDArray[np.float32] = draw_vectors(
                         color_frame,
-                        keypoints_predicted,
-                        keypoints_current,
+                        prev_kps,
+                        curr_kps,
                         masks,
                     ).astype(np.float32)
                     imshow(output, "sparse optical flow", handle_destroy=False)
@@ -398,17 +396,14 @@ class OTV:
                         LOG.debug("Breaking")
                         break
 
-            previous_frame = current_frame.copy()
-            keypoints_mem_current.append(keypoints_current)
-            keypoints_mem_predicted.append(keypoints_predicted)
+            prev_frame = curr_frame.copy()
+            # keypoints_mem_current.append(prev_kps)
+            # keypoints_mem_predicted.append(curr_kps)
 
             # TODO: I guess the swap is not needed such as in the next iteration
             # the keypoints_predicted will be cleaned
-            if len(keypoints_predicted) != 0:
-                keypoints_predicted, keypoints_current = (
-                    keypoints_current,
-                    keypoints_predicted,
-                )
+            if len(curr_kps) != 0:
+                prev_kps, curr_kps = curr_kps, prev_kps
         np.save("traj.npy", traj_map)
 
         loader.end()
@@ -416,7 +411,7 @@ class OTV:
             cv2.destroyAllWindows()
 
         LOG.debug("Computing stats")
-        avg, max_, min_, std_dev, count = compute_stats(velocity, show_video)
+        avg, max_, min_, std_dev, count = compute_stats(velocities, show_video)
         LOG.debug(f"avg: {round(avg, 4)}")
         LOG.debug(f"max: {round(max_, 4)}")
         LOG.debug(f"min: {round(min_, 4)}")
@@ -425,7 +420,7 @@ class OTV:
 
         LOG.debug("Computing stats by region")
         out_json: dict[str, dict[str, float]] = {}
-        for i, (sv, position) in enumerate(zip(regions, self._regions)):
+        for i, (sv, position) in enumerate(zip(regions, self.regions_heights)):
             out_json[str(i)] = {}
             t = np.array(sv)
             t = t[t != 0]

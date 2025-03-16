@@ -161,7 +161,7 @@ class Formatter:
         self._rotation_matrix = self._get_rotation_matrix()
         return new_image
 
-    def apply_roi_extraction(self, image: np.ndarray, gray=True) -> np.ndarray:
+    def apply_roi_extraction(self, image: NDArray, gray=True) -> NDArray:
         """Apply image rotation, cropping, and convert to grayscale.
 
         Args:
