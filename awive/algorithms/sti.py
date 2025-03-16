@@ -27,21 +27,30 @@ class STIV:
         config: StivConfig,
         loader: Loader,
         formatter: Formatter,
+        lines: list[int],
         images_dp: Path | None = None,
     ):
         """Initialize STIV."""
         # Shall be initialized later
+        self.lines = [int(line * formatter.resolution) for line in lines]
+        self.lines_range = [
+            (
+                int(lrange[0] * formatter.resolution),
+                int(lrange[1] * formatter.resolution),
+            )
+            for lrange in config.lines_range
+        ]
         self.images_dp = images_dp
         self.config = config
         self.loader = loader
         self.formatter = formatter
-        self.stis_qnt = len(self.config.lines)
-        t0 = time.process_time()
-        self.stis: list[NDArray] = self.generate_st_images()
-        t1 = time.process_time()
+        self.stis_qnt = len(lines)
         LOG.debug(f"Number of frames: {self.loader.total_frames}")
         LOG.debug(f"Frames per second: {self.loader.fps}")
         LOG.debug(f"Pixels per meter: {self.formatter.ppm}")
+        t0 = time.process_time()
+        self.stis: list[NDArray] = self.generate_st_images()
+        t1 = time.process_time()
 
         # create filter window
         w_size = self.config.filter_window
@@ -52,7 +61,7 @@ class STIV:
         # vertical and horizontal filter width
         self._vh_filter = 1
         self._polar_filter_width = self.config.polar_filter_width
-        LOG.debug("- generate_st_images: {t1 - t0}")
+        LOG.debug(f"- generate_st_images: {t1 - t0}")
 
     def save(self, filename: str, image: NDArray):
         if self.images_dp is not None:
@@ -63,7 +72,12 @@ class STIV:
         Args:
             angle: angle in radians
         """
-        velocity = math.tan(angle) * self.loader.fps / self.formatter.ppm
+        velocity = (
+            math.tan(angle)
+            * self.loader.fps
+            / self.formatter.ppm
+            / self.formatter.resolution
+        )
         return velocity
 
     def generate_st_images(self):
@@ -81,10 +95,11 @@ class STIV:
             image = self.formatter.apply_roi_extraction(image)
             image = self.formatter.apply_resolution(image)
 
-            for i, coordinates in enumerate(self.config.lines):
-                start = coordinates.start
-                end = coordinates.end
-                row = image[start[0], start[1] : end[1]]
+            assert len(self.lines) == len(self.lines_range)
+            for i, (line_pos, line_range) in enumerate(
+                zip(self.lines, self.lines_range)
+            ):
+                row = image[line_pos, line_range[0] : line_range[1]]
                 stis[i].append(row)
 
         for i in range(self.stis_qnt):
@@ -203,7 +218,7 @@ class STIV:
         - Guo, Shenglian
         - Wang, Jun
         """
-        # resize in order to have more precision
+        # crop and resize in order to have more precision
         x = min(sti.shape)
         if x == sti.shape[0]:
             sti = sti[:, :x]
@@ -277,7 +292,7 @@ class STIV:
             padding = ((0, b - a), (0, 0))
         return np.pad(M, padding)
 
-    def _calculate_MOT_using_FFT(self, sti):
+    def _calculate_MOT_using_FFT(self, sti: NDArray):
         """"""
         self.save(f"g_{cnt}_0.npy", sti)
         sti_canny = cv2.Canny(sti, 10, 10)
@@ -294,8 +309,8 @@ class STIV:
         angle1 = 2 * math.pi * freq / sti_ft_polar.shape[1]
         angle = (angle0 + angle1) / 2
         velocity = self.get_velocity(angle)
-        LOG.debug(f"angle: {round(angle, 2)}")
-        LOG.debug(f"velocity: {round(velocity, 2)}")
+        LOG.debug(f"angle: {angle:.2f}")
+        LOG.debug(f"velocity: {velocity:.2f}")
         mask = np.zeros(sti.shape)
         mask = self._draw_angle(
             mask,
@@ -410,7 +425,7 @@ def main(
         raise ValueError("STIV configuration not found")
     loader: Loader = make_loader(config.dataset)
     formatter = Formatter(config)
-    stiv = STIV(config.stiv, loader, formatter, images_dp)
+    stiv = STIV(config.stiv, loader, formatter, config.lines, images_dp)
     t1 = time.process_time()
     ret = stiv.run(show_image)
     t2 = time.process_time()
