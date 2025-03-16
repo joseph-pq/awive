@@ -263,19 +263,20 @@ class OTV:
             random.shuffle(keypoints)
 
             # Add keypoints in lists
-            kepoints_to_add = min(
+            keypoints_to_add = min(
                 self._max_features - len(keypoints_current), len(keypoints)
             )
-            time.extend([loader.index] * kepoints_to_add)
-            valid[loader.index].extend([False] * kepoints_to_add)
-            velocity_mem[loader.index].extend([0] * kepoints_to_add)
-            if previous_frame is None:
-                keypoints_current.extend(keypoints[:kepoints_to_add])
-                keypoints_start.extend(keypoints[:kepoints_to_add])
-                path[loader.index].extend(range(kepoints_to_add))
-            else:
-                keypoints_current.extend(keypoints[-kepoints_to_add:])
-                keypoints_start.extend(keypoints[-kepoints_to_add:])
+            if keypoints_to_add != 0:
+                time.extend([loader.index] * keypoints_to_add)
+                valid[loader.index].extend([False] * keypoints_to_add)
+                velocity_mem[loader.index].extend([0] * keypoints_to_add)
+                if previous_frame is None:
+                    keypoints_current.extend(keypoints[:keypoints_to_add])
+                    keypoints_start.extend(keypoints[:keypoints_to_add])
+                    path[loader.index].extend(range(keypoints_to_add))
+                else:
+                    keypoints_current.extend(keypoints[-keypoints_to_add:])
+                    keypoints_start.extend(keypoints[-keypoints_to_add:])
 
             LOG.debug("Analyzing frame:", loader.index)
             if previous_frame is not None:
