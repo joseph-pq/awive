@@ -39,5 +39,24 @@ requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
 [tool.ruff]
-# Set the maximum line length to 79.
+exclude = ["*.pyi"]
 line-length = 79
+external = [
+    "DOC",
+]
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+line_length = 79
+
+[tool.pytest.ini_options]
+testpaths = "tests"
+log_cli = false
+log_cli_level = "INFO"
+log_level = "DEBUG"
+log_date_format = "%Y-%m-%dT%H:%M:%S"
+log_format = "%(asctime)s [%(levelname)8s] %(message)s"
+addopts = "-p no:warnings"
