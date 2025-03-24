@@ -1,6 +1,6 @@
 [project]
 name = "awive"
-version = "3.0.1"
+version = "3.0.3"
 description = "Adaptive Water Image Velocimetry"
 authors = [{ name = "Joseph P.", email = "joseph.pena.q@gmail.com" }]
 readme = "README.md"
