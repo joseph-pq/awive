@@ -19,3 +19,8 @@ repos:
       - id: ruff
       # Run the formatter.
       - id: ruff-format
+  - repo: https://github.com/joseph-pq/check-tag-pre-commit
+    rev: 0.2.0
+    hooks:
+      - id: check-version-tag
+
