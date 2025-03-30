@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel as RawBaseModel, Field
 from numpy.typing import NDArray
+from typing import Literal
 from typing import Any
 import numpy as np
 import functools
@@ -42,9 +43,9 @@ class ConfigGcp(BaseModel):
         description="at least four meters coordinates: [[x1,y2], ..., [x4,y4]]",
     )
     distances: dict[tuple[int, int], float] | None = Field(
-        None, description="distances in meters between the GCPs"
+        default=None, description="distances in meters between the GCPs"
     )
-    ground_truth: list[GroundTruth] | None = Field(None)
+    ground_truth: list[GroundTruth] | None = Field(default=None)
 
     @functools.cached_property
     def pixels_coordinates(self) -> NDArray:
@@ -103,13 +104,15 @@ class ConfigGcp(BaseModel):
         if len(self.meters) == 0 and self.distances is None:
             raise ValueError("meters or distances must be provided")
         if len(self.meters) == 0 and self.distances is not None:
-            if len(self.distances) != (
+            if len(self.distances) == int(
                 len(self.pixels) * (len(self.pixels) - 1) / 2
             ):
                 self.meters = self.calculate_meters(self.distances)
             else:
                 raise ValueError(
-                    "distances must have the correct number of elements"
+                    "distances must have the correct number of elements. "
+                    f"number of distance ellemtns {len(self.distances)}."
+                    f"Expected {len(self.pixels) * (len(self.pixels) - 1) / 2}"
                 )
 
         if len(self.pixels) != len(self.meters):
@@ -128,7 +131,7 @@ class ImageCorrection(BaseModel):
 class PreProcessing(BaseModel):
     """Configurations pre-processing."""
 
-    rotate_image: int = Field(0, description="degrees")
+    rotate_image: int = Field(default=0, description="degrees")
     pre_roi: tuple[tuple[int, int], tuple[int, int]] = Field(
         ..., description="((x1,y1), (x2,y2))"
     )
@@ -137,14 +140,14 @@ class PreProcessing(BaseModel):
     )
     image_correction: ImageCorrection
     ppm: int = Field(
-        100,
+        default=100,
         description=(
             "Resolution in pixels per meter. This is not the video "
             "resolution, but the resolution that will be forced."
         ),
     )
     resolution: float = Field(
-        1,
+        default=1,
         description=(
             "Resolution to process the video. Use this feature when the image"
             " resolution is too big"
@@ -155,15 +158,20 @@ class PreProcessing(BaseModel):
 class Dataset(BaseModel):
     """Configuration dataset."""
 
-    image_dataset_dp: Path | None = None
+    image_dataset_dp: Path | None = Field(default=None)
+    image_suffix: Literal["jpg", "png"] = Field(
+        default="jpg", description="Image suffix"
+    )
     image_number_offset: int = Field(
-        0, description="Offset for the image number"
+        default=0, description="Offset for the image number"
     )
-    image_path_prefix: str = Field("", description="Prefix for the image path")
+    image_path_prefix: str = Field(
+        default="", description="Prefix for the image path"
+    )
     image_path_digits: int = Field(
-        4, description="Number of digits for the image path"
+        default=4, description="Number of digits for the image path"
     )
-    video_fp: Path | None = None
+    video_fp: Path | None = Field(default=None)
     gcp: ConfigGcp
 
     def model_post_init(self, __context: Any):

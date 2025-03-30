@@ -71,7 +71,7 @@ def main(
     """Read configurations and play video."""
     config = Config.from_fp(config_fp)
     loader = make_loader(config.dataset)
-    formatter = Formatter(config)
+    formatter = Formatter(config.dataset, config.preprocessing)
     if wlcrop:
         with open(config_fp) as json_file:
             config = json.load(json_file)[video_identifier]["water_level"]

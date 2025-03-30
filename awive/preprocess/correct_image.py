@@ -16,7 +16,11 @@ import numpy as np
 from numpy.typing import NDArray
 
 import awive.preprocess.imageprep as ip
-from awive.config import Config
+from awive.config import (
+    Dataset as DatasetConfig,
+    PreProcessing as PreProcessingConfig,
+    Config,
+)
 from awive.exceptions import VideoSourceError
 from awive.loader import make_loader
 from awive.tools import imshow
@@ -27,7 +31,11 @@ LOG = logging.getLogger(__name__)
 class Formatter:
     """Format frames in order to be used by image processing methods."""
 
-    def __init__(self, config: Config) -> None:
+    def __init__(
+        self,
+        dataset_config: DatasetConfig,
+        preprocessing_config: PreProcessingConfig,
+    ) -> None:
         """Initialize Formatter object.
 
         Args:
@@ -37,48 +45,49 @@ class Formatter:
             VideoSourceError: If no sample image is found.
         """
         # read configuration file
-        self._config: Config = config
-        self.resolution = config.preprocessing.resolution
-        self.ppm = config.preprocessing.ppm
-        sample_image = self._get_sample_image(self._config)
+        self.dataset = dataset_config
+        self.preprocessing = preprocessing_config
+        self.resolution = self.preprocessing.resolution
+        self.ppm = self.preprocessing.ppm
+        sample_image = self._get_sample_image(self.dataset)
         if sample_image is None:
             raise VideoSourceError("No sample image found")
         self._shape = (sample_image.shape[0], sample_image.shape[1])
-        if self._config.dataset.gcp.apply:
+        if self.dataset.gcp.apply:
             self._or_params: tuple[Any, np.ndarray] | None = (
                 self._get_orthorectification_params(sample_image)
             )
         else:
             self._or_params = None
 
-        self._rotation_angle = self._config.preprocessing.rotate_image
+        self._rotation_angle = self.preprocessing.rotate_image
         self._rotation_matrix = self._get_rotation_matrix()
         self._slice = tuple(
             map(
                 lambda x: slice(x[0], x[1]),
-                zip(*self._config.preprocessing.roi),
+                zip(*self.preprocessing.roi),
             )
         )
         self._pre_slice = tuple(
             map(
                 lambda x: slice(x[0], x[1]),
-                zip(*self._config.preprocessing.pre_roi),
+                zip(*self.preprocessing.pre_roi),
             )
         )
 
     def _get_orthorectification_params(
         self, sample_image: NDArray, reduce: NDArray | None = None
     ) -> tuple[NDArray, NDArray]:
-        pixels_coordinates = self._config.dataset.gcp.pixels_coordinates
-        meters_coordinates = self._config.dataset.gcp.meters_coordinates
+        pixels_coordinates = self.dataset.gcp.pixels_coordinates
+        meters_coordinates = self.dataset.gcp.meters_coordinates
         if reduce is not None:
             pixels_coordinates = pixels_coordinates - reduce
-        if self._config.preprocessing.image_correction.apply:
+        if self.preprocessing.image_correction.apply:
             corr_img = ip.apply_lens_correction(
                 sample_image,
-                k1=self._config.preprocessing.image_correction.k1,
-                c=self._config.preprocessing.image_correction.c,
-                f=self._config.preprocessing.image_correction.f,
+                k1=self.preprocessing.image_correction.k1,
+                c=self.preprocessing.image_correction.c,
+                f=self.preprocessing.image_correction.f,
             )
         else:
             corr_img = sample_image
@@ -86,7 +95,7 @@ class Formatter:
             corr_img,
             pixels_coordinates,
             meters_coordinates,
-            ppm=self._config.preprocessing.ppm,
+            ppm=self.preprocessing.ppm,
             lonlat=False,
         )
         return m, c
@@ -105,9 +114,7 @@ class Formatter:
         image_center = (width / 2, height / 2)
         # getRotationMatrix2D needs coordinates in reverse
         # order (width, height) compared to shape
-        rot_mat = cv2.getRotationMatrix2D(
-            image_center, self._rotation_angle, a
-        )
+        rot_mat = cv2.getRotationMatrix2D(image_center, self._rotation_angle, a)
         # rotation calculates the cos and sin, taking absolutes of those.
         abs_cos = abs(rot_mat[0, 0])
         abs_sin = abs(rot_mat[0, 1])
@@ -122,8 +129,8 @@ class Formatter:
         return rot_mat
 
     @staticmethod
-    def _get_sample_image(config: Config) -> np.ndarray | None:
-        loader = make_loader(config.dataset)
+    def _get_sample_image(config: DatasetConfig) -> np.ndarray | None:
+        loader = make_loader(config)
         image: np.ndarray | None = loader.read()
         loader.end()
         return image
@@ -143,9 +150,7 @@ class Formatter:
     def _rotate(self, image: np.ndarray) -> np.ndarray:
         if self._rotation_angle != 0:
             # rotate image with the new bounds and translated rotation matrix
-            rotated_mat = cv2.warpAffine(
-                image, self._rotation_matrix, self._bound
-            )
+            rotated_mat = cv2.warpAffine(image, self._rotation_matrix, self._bound)
             return rotated_mat
         return image
 
@@ -200,12 +205,8 @@ class Formatter:
 
     def _crop_using_refs(self, image: np.ndarray) -> np.ndarray:
         image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        x_min, y_min = np.min(
-            self._config.dataset.gcp.pixels_coordinates, axis=0
-        )
-        x_max, y_max = np.max(
-            self._config.dataset.gcp.pixels_coordinates, axis=0
-        )
+        x_min, y_min = np.min(self.dataset.gcp.pixels_coordinates, axis=0)
+        x_max, y_max = np.max(self.dataset.gcp.pixels_coordinates, axis=0)
         image = image[y_min:y_max, x_min:x_max]
         self._shape = (image.shape[0], image.shape[1])
         self._or_params = self._get_orthorectification_params(
@@ -223,13 +224,13 @@ class Formatter:
         Returns:
             The image with reduced resolution.
         """
-        if self._config.preprocessing.resolution >= 1:
+        if self.preprocessing.resolution >= 1:
             return image
         return cv2.resize(
             image,
             (0, 0),
-            fx=self._config.preprocessing.resolution,
-            fy=self._config.preprocessing.resolution,
+            fx=self.preprocessing.resolution,
+            fy=self.preprocessing.resolution,
         )
 
     def apply_distortion_correction(self, image: np.ndarray) -> np.ndarray:
@@ -241,7 +242,7 @@ class Formatter:
         Returns:
             The undistorted image.
         """
-        if not self._config.dataset.gcp.apply:
+        if not self.dataset.gcp.apply:
             return image
         if self._or_params is None:
             LOG.error("No orthorectification parameters found")
@@ -249,18 +250,16 @@ class Formatter:
 
         image = self._crop_using_refs(image)
         # apply lens distortion correction
-        if self._config.preprocessing.image_correction.apply:
+        if self.preprocessing.image_correction.apply:
             image = ip.apply_lens_correction(
                 image,
-                k1=self._config.preprocessing.image_correction.k1,
-                c=self._config.preprocessing.image_correction.c,
-                f=self._config.preprocessing.image_correction.f,
+                k1=self.preprocessing.image_correction.k1,
+                c=self.preprocessing.image_correction.c,
+                f=self.preprocessing.image_correction.f,
             )
 
         # apply orthorectification
-        image = ip.apply_orthorec(
-            image, self._or_params[0], self._or_params[1]
-        )
+        image = ip.apply_orthorec(image, self._or_params[0], self._or_params[1])
         self._shape = (image.shape[0], image.shape[1])
         # update rotation matrix such as the shape of the image changed
         self._rotation_matrix = self._get_rotation_matrix()
@@ -278,7 +277,7 @@ def main(config_fp: Path, save_image: bool = False) -> None:
     t0 = time.process_time()
     loader = make_loader(config.dataset)
     t1 = time.process_time()
-    formatter = Formatter(config)
+    formatter = Formatter(config.dataset, config.preprocessing)
     t2 = time.process_time()
     image = loader.read()
     if image is None:

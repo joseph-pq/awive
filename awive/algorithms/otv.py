@@ -507,7 +507,7 @@ def run_otv(
     """
     config = Config.from_fp(config_path)
     loader: Loader = make_loader(config.dataset)
-    formatter = Formatter(config)
+    formatter = Formatter(config.dataset, config.preprocessing)
     loader.has_images()
     image = loader.read()
     if image is None:

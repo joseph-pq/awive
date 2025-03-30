@@ -424,7 +424,7 @@ def main(
     if config.stiv is None:
         raise ValueError("STIV configuration not found")
     loader: Loader = make_loader(config.dataset)
-    formatter = Formatter(config)
+    formatter = Formatter(config.dataset, config.preprocessing)
     stiv = STIV(config.stiv, loader, formatter, config.lines, images_dp)
     t1 = time.process_time()
     ret = stiv.run(show_image)

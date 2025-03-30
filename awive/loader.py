@@ -77,6 +77,7 @@ class ImageLoader(Loader):
         if config.image_dataset_dp is None:
             raise ValueError("Image dataset path not provided")
         self._image_dataset: Path = config.image_dataset_dp
+        self.suffix = config.image_suffix
         self._prefix = config.image_path_prefix
         self._digits = config.image_path_digits
         self._image_number = len(os.listdir(self._image_dataset))
@@ -105,10 +106,10 @@ class ImageLoader(Loader):
     def _path(self, i: int) -> str:
         i += self._offset
         if self._digits == 5:
-            return f"{self._image_dataset}/{self._prefix}{i:05}.jpg"
+            return f"{self._image_dataset}/{self._prefix}{i:05}.{self.suffix}"
         if self._digits == 3:
-            return f"{self._image_dataset}/{self._prefix}{i:03}.jpg"
-        return f"{self._image_dataset}/{self._prefix}{i:04}.jpg"
+            return f"{self._image_dataset}/{self._prefix}{i:03}.{self.suffix}"
+        return f"{self._image_dataset}/{self._prefix}{i:04}.{self.suffix}"
 
     def set_index(self, index: int) -> None:
         """Set the index of the loader to read any image from the folder.
