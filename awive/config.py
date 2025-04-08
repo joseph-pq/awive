@@ -42,7 +42,7 @@ class ConfigGcp(BaseModel):
         default_factory=lambda: [],
         description="at least four meters coordinates: [[x1,y2], ..., [x4,y4]]",
     )
-    distances: dict[tuple[int, int], float] | dict[str,float] | None = Field(
+    distances: dict[tuple[int, int], float] | dict[str, float] | None = Field(
         None, description="distances in meters between the GCPs"
     )
     ground_truth: list[GroundTruth] | None = Field(None)
@@ -96,11 +96,17 @@ class ConfigGcp(BaseModel):
         x[:, 0] *= -1
         return x.tolist()
 
-    def  convert_str_keys_to_tuples(self, input_dict: dict[str,float]) -> dict[tuple[int, int], float]:
+    def convert_str_keys_to_tuples(
+        self, input_dict: dict[str, float]
+    ) -> dict[tuple[int, int], float]:
         """Convert string-represented tuple keys to actual tuples"""
         result = {}
         for key, value in input_dict.items():
-            if isinstance(key, str) and key.startswith('(') and key.endswith(')'):
+            if (
+                isinstance(key, str)
+                and key.startswith("(")
+                and key.endswith(")")
+            ):
                 try:
                     # Safely evaluate the string as a tuple
                     tuple_key = literal_eval(key)
@@ -109,20 +115,25 @@ class ConfigGcp(BaseModel):
                     else:
                         raise ValueError(f"Key '{key}' is not a tuple")
                 except (ValueError, SyntaxError) as e:
-                    raise ValueError(f"Invalid tuple format in key '{key}'") from e
+                    raise ValueError(
+                        f"Invalid tuple format in key '{key}'"
+                    ) from e
             else:
                 # Keep the key as is if it's not a string-represented tuple
                 result[key] = value
         return result
-    
+
     def model_post_init(self, __context: Any):
         if self.distances is not None:
-            converted_distances = self.convert_str_keys_to_tuples(self.distances)
+            converted_distances = self.convert_str_keys_to_tuples(
+                self.distances
+            )
             self.distances = converted_distances
 
-        if isinstance(self.distances.keys,str):
+        if isinstance(self.distances.keys, str):
             self.distances = {
-                tuple(map(int, k.split(","))): v for k, v in self.distances.items()
+                tuple(map(int, k.split(","))): v
+                for k, v in self.distances.items()
             }
         if len(self.pixels) < 4:
             raise ValueError(
@@ -142,7 +153,6 @@ class ConfigGcp(BaseModel):
 
         if len(self.pixels) != len(self.meters):
             raise ValueError("pixels and meters must have the same length")
-        
 
 
 class ImageCorrection(BaseModel):
