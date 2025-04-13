@@ -2,9 +2,18 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.3.0
     hooks:
-      - id: check-yaml
       - id: end-of-file-fixer
       - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-docstring-first
+      - id: check-yaml
+      - id: debug-statements
+      - id: detect-private-key
+      - id: check-executables-have-shebangs
+      - id: check-toml
+      - id: check-case-conflict
+      - id: check-added-large-files
+
   - repo: https://github.com/astral-sh/uv-pre-commit
     rev: 0.5.26
     hooks:
@@ -23,4 +32,3 @@ repos:
     rev: 0.2.0
     hooks:
       - id: check-version-tag
-
