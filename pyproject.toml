@@ -41,6 +41,9 @@ build-backend = "pdm.backend"
 [tool.ruff]
 exclude = ["*.pyi"]
 line-length = 79
+
+[tool.ruff.lint]
+select = ["I"]
 external = [
     "DOC",
 ]
