@@ -6,9 +6,9 @@ frames in a defined directory path.
 
 """
 
-from pathlib import Path
 import logging
 import time
+from pathlib import Path
 from typing import Any
 
 import cv2
@@ -17,9 +17,13 @@ from numpy.typing import NDArray
 
 import awive.preprocess.imageprep as ip
 from awive.config import (
-    Dataset as DatasetConfig,
-    PreProcessing as PreProcessingConfig,
     Config,
+)
+from awive.config import (
+    Dataset as DatasetConfig,
+)
+from awive.config import (
+    PreProcessing as PreProcessingConfig,
 )
 from awive.exceptions import VideoSourceError
 from awive.loader import make_loader
@@ -114,7 +118,9 @@ class Formatter:
         image_center = (width / 2, height / 2)
         # getRotationMatrix2D needs coordinates in reverse
         # order (width, height) compared to shape
-        rot_mat = cv2.getRotationMatrix2D(image_center, self._rotation_angle, a)
+        rot_mat = cv2.getRotationMatrix2D(
+            image_center, self._rotation_angle, a
+        )
         # rotation calculates the cos and sin, taking absolutes of those.
         abs_cos = abs(rot_mat[0, 0])
         abs_sin = abs(rot_mat[0, 1])
@@ -150,7 +156,9 @@ class Formatter:
     def _rotate(self, image: np.ndarray) -> np.ndarray:
         if self._rotation_angle != 0:
             # rotate image with the new bounds and translated rotation matrix
-            rotated_mat = cv2.warpAffine(image, self._rotation_matrix, self._bound)
+            rotated_mat = cv2.warpAffine(
+                image, self._rotation_matrix, self._bound
+            )
             return rotated_mat
         return image
 
@@ -259,7 +267,9 @@ class Formatter:
             )
 
         # apply orthorectification
-        image = ip.apply_orthorec(image, self._or_params[0], self._or_params[1])
+        image = ip.apply_orthorec(
+            image, self._or_params[0], self._or_params[1]
+        )
         self._shape = (image.shape[0], image.shape[1])
         # update rotation matrix such as the shape of the image changed
         self._rotation_matrix = self._get_rotation_matrix()

@@ -1,7 +1,10 @@
 import cv2
 from numpy.typing import NDArray
 
-def imshow(img: NDArray, title: str = "Image", handle_destroy: bool = True) -> None:
+
+def imshow(
+    img: NDArray, title: str = "Image", handle_destroy: bool = True
+) -> None:
     if img.shape[0] > img.shape[1]:
         new_height = 512
         new_width = int(img.shape[1] / img.shape[0] * new_height)

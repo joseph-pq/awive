@@ -1,6 +1,7 @@
 """Class ImageVelocimetry."""
 
 import abc
+
 from awive.loader import Loader
 
 

@@ -10,7 +10,8 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-from awive.config import Dataset as DatasetConfig, Config
+from awive.config import Config
+from awive.config import Dataset as DatasetConfig
 
 FOLDER_PATH = "/home/joseph/Documents/Thesis/Dataset/config"
 

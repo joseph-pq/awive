@@ -1,14 +1,13 @@
 """Execute awive methods."""
 
-import time
 import argparse
+import time
 
 from awive.algorithms import (
     otv,
     sti,
     water_level_hist,
 )
-
 
 FOLDER_PATH = "/home/joseph/Documents/Thesis/Dataset/config"
 

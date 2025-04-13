@@ -6,13 +6,14 @@ by:
 - Hahn, H.
 """
 
-from pathlib import Path
 import os
-import numpy as np
-import cv2
-from awive.loader import make_loader
-from awive.config import Config
+from pathlib import Path
 
+import cv2
+import numpy as np
+
+from awive.config import Config
+from awive.loader import make_loader
 
 FOLDER_PATH = "/home/joseph/Documents/Thesis/Dataset/config"
 

@@ -1,8 +1,9 @@
 """Optical Tracking Image Velocimetry."""
 
 import argparse
-import math
 import itertools
+import logging
+import math
 import random
 from pathlib import Path
 
@@ -14,7 +15,6 @@ from awive.config import Config
 from awive.loader import Loader, make_loader
 from awive.preprocess.correct_image import Formatter
 from awive.tools import imshow
-import logging
 
 LOG = logging.getLogger(__name__)
 

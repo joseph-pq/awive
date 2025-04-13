@@ -3,7 +3,6 @@
 import cv2 as cv
 import numpy as np
 
-
 # Define the codec and create VideoWriter object
 xd = (421, 310)
 fourcc = cv.VideoWriter_fourcc(*"XVID")

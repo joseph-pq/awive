@@ -1,18 +1,18 @@
 """Space Time Image Velocimetry."""
 
-from pathlib import Path
+import logging
 import math
 import time
+from pathlib import Path
 
 import cv2
 import numpy as np
-from awive.config import Config
 from numpy.typing import NDArray
 
-from awive.loader import make_loader, Loader
+from awive.config import Config
 from awive.config import Stiv as StivConfig
+from awive.loader import Loader, make_loader
 from awive.preprocess.correct_image import Formatter
-import logging
 
 LOG = logging.getLogger(__name__)
 
