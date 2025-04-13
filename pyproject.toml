@@ -43,10 +43,34 @@ exclude = ["*.pyi"]
 line-length = 79
 
 [tool.ruff.lint]
-select = ["I"]
+select = [
+    "I",    # see: https://pypi.org/project/isort/
+    "RUF",  # Ruff-specific rules
+    "W",    # see: https://pypi.org/project/pycodestyle
+]
 external = [
     "DOC",
 ]
+ignore = [
+    # Do not require type hints for *args and **kwargs
+    "ANN002",
+    "ANN003",
+    # Allow use of Any type
+    "ANN401",
+    # Do not require docstrings in __init__ and modules
+    "D100",
+    "D104",
+    # Allow use of assert
+    "S101",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.docformatter]
+recursive = true
+wrap-summaries=79
+wrap-descriptions=79
 
 [tool.isort]
 multi_line_output = 3

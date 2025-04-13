@@ -1,14 +1,15 @@
 """Configuration."""
 
-from pydantic import BaseModel as RawBaseModel, Field
-from numpy.typing import NDArray
-from typing import Literal
-from typing import Any
-import numpy as np
 import functools
 import json
 from pathlib import Path
+from typing import Any, Literal
+
+import numpy as np
 import yaml
+from numpy.typing import NDArray
+from pydantic import BaseModel as RawBaseModel
+from pydantic import Field
 
 
 class BaseModel(RawBaseModel):
@@ -91,7 +92,7 @@ class ConfigGcp(BaseModel):
         eigvals = eigvals[idx][:dim]
         eigvecs = eigvecs[:, idx][:, :dim]
         # Compute coordinates using the positive eigenvalues
-        l = np.diag(np.sqrt(eigvals))  # noqa: E741
+        l = np.diag(np.sqrt(eigvals))
         x = eigvecs @ l
         x[:, 0] *= -1
         return x.tolist()
