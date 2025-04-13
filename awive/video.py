@@ -26,7 +26,20 @@ def play(
     blur=True,
     resize_factor: float | None = None,
 ) -> None:
-    """Plays a video."""
+    """
+    Plays a video.
+
+    Args:
+        loader: The loader object to read images.
+        formatter: The formatter object to apply image corrections.
+        undistort: Whether to apply distortion correction.
+        roi: Whether to apply region of interest extraction.
+        time_delay: Delay between frames in milliseconds.
+        resize: Whether to resize the image.
+        wlcrop: Coordinates for water level cropping.
+        blur: Whether to apply a median blur to the image.
+        resize_factor: Factor by which to resize the image.
+    """
     i: int = 0
 
     while loader.has_images():
@@ -68,7 +81,19 @@ def main(
     wlcrop=True,
     blur=True,
 ) -> None:
-    """Read configurations and play video."""
+    """
+    Read configurations and play video.
+
+    Args:
+        config_fp: File path to the configuration file.
+        video_identifier: Identifier for the video in the config file.
+        undistort: Whether to apply distortion correction.
+        roi: Whether to apply region of interest extraction.
+        time_delay: Delay between frames in milliseconds.
+        resize: Whether to resize the image.
+        wlcrop: Whether to apply water level cropping.
+        blur: Whether to apply a median blur to the image.
+    """
     config = Config.from_fp(config_fp)
     loader = make_loader(config.dataset)
     formatter = Formatter(config.dataset, config.preprocessing)
