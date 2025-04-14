@@ -42,7 +42,7 @@ class ConfigGcp(BaseModel):
         default_factory=lambda: [],
         description="at least four meters coordinates: [[x1,y2], ..., [x4,y4]]",
     )
-    distances: dict[tuple[int, int], float] | dict[str, float] | None = Field(
+    distances: dict[str, float] | None = Field(
         None, description="distances in meters between the GCPs"
     )
     ground_truth: list[GroundTruth] | None = Field(None)
@@ -58,7 +58,7 @@ class ConfigGcp(BaseModel):
         return np.array(self.meters)
 
     def calculate_meters(
-        self, distances: dict[tuple[int, int], float]
+        self, distances: dict[str, float]
     ) -> list[tuple[float, float]]:
         def di(i: int, j: int):
             return distances.get((i, j)) or distances.get((j, i))
@@ -99,7 +99,14 @@ class ConfigGcp(BaseModel):
     def convert_str_keys_to_tuples(
         self, input_dict: dict[str, float]
     ) -> dict[tuple[int, int], float]:
-        """Convert string-represented tuple keys to actual tuples"""
+        """Convert string-represented tuple keys to actual tuples.
+
+        Args:
+            input_dict: Dictionary with string keys representing tuples to convert.
+
+        Returns:
+            Dictionary with keys converted to integer tuples.
+        """
         result = {}
         for key, value in input_dict.items():
             if (
@@ -120,7 +127,7 @@ class ConfigGcp(BaseModel):
                     ) from e
             else:
                 # Keep the key as is if it's not a string-represented tuple
-                result[key] = value
+                raise ValueError(f"Key '{key}' is not a tuple")
         return result
 
     def model_post_init(self, __context: Any):
@@ -130,11 +137,6 @@ class ConfigGcp(BaseModel):
             )
             self.distances = converted_distances
 
-        if isinstance(self.distances.keys, str):
-            self.distances = {
-                tuple(map(int, k.split(","))): v
-                for k, v in self.distances.items()
-            }
         if len(self.pixels) < 4:
             raise ValueError(
                 f"at least four coordinates are required: {len(self.pixels)}"
