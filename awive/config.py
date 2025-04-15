@@ -58,7 +58,7 @@ class ConfigGcp(BaseModel):
         return np.array(self.meters)
 
     def calculate_meters(
-        self, distances: dict[str, float]
+        self, distances: dict[tuple[int, int], float]
     ) -> list[tuple[float, float]]:
         def di(i: int, j: int):
             return distances.get((i, j)) or distances.get((j, i))
@@ -135,7 +135,6 @@ class ConfigGcp(BaseModel):
             converted_distances = self.convert_str_keys_to_tuples(
                 self.distances
             )
-            self.distances = converted_distances
 
         if len(self.pixels) < 4:
             raise ValueError(
@@ -147,7 +146,7 @@ class ConfigGcp(BaseModel):
             if len(self.distances) != (
                 len(self.pixels) * (len(self.pixels) - 1) / 2
             ):
-                self.meters = self.calculate_meters(self.distances)
+                self.meters = self.calculate_meters(converted_distances)
             else:
                 raise ValueError(
                     "distances must have the correct number of elements"
