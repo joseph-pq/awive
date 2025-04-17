@@ -2,6 +2,7 @@
 
 import functools
 import json
+from ast import literal_eval
 from pathlib import Path
 from typing import Any, Literal
 
@@ -43,8 +44,8 @@ class ConfigGcp(BaseModel):
         default_factory=lambda: [],
         description="at least four meters coordinates: [[x1,y2], ..., [x4,y4]]",
     )
-    distances: dict[tuple[int, int], float] | None = Field(
-        default=None, description="distances in meters between the GCPs"
+    distances: dict[str, float] | None = Field(
+        None, description="distances in meters between the GCPs"
     )
     ground_truth: list[GroundTruth] | None = Field(default=None)
 
@@ -97,6 +98,40 @@ class ConfigGcp(BaseModel):
         x[:, 0] *= -1
         return x.tolist()
 
+    def convert_str_keys_to_tuples(
+        self, input_dict: dict[str, float]
+    ) -> dict[tuple[int, int], float]:
+        """Convert string-represented tuple keys to actual tuples.
+
+        Args:
+            input_dict: Dictionary with string keys representing tuples to convert.
+
+        Returns:
+            Dictionary with keys converted to integer tuples.
+        """
+        result = {}
+        for key, value in input_dict.items():
+            if (
+                isinstance(key, str)
+                and key.startswith("(")
+                and key.endswith(")")
+            ):
+                try:
+                    # Safely evaluate the string as a tuple
+                    tuple_key = literal_eval(key)
+                    if isinstance(tuple_key, tuple):
+                        result[tuple_key] = value
+                    else:
+                        raise ValueError(f"Key '{key}' is not a tuple")
+                except (ValueError, SyntaxError) as e:
+                    raise ValueError(
+                        f"Invalid tuple format in key '{key}'"
+                    ) from e
+            else:
+                # Keep the key as is if it's not a string-represented tuple
+                raise ValueError(f"Key '{key}' is not a tuple")
+        return result
+
     def model_post_init(self, __context: Any):
         if len(self.pixels) < 4:
             raise ValueError(
@@ -104,17 +139,21 @@ class ConfigGcp(BaseModel):
             )
         if len(self.meters) == 0 and self.distances is None:
             raise ValueError("meters or distances must be provided")
-        if len(self.meters) == 0 and self.distances is not None:
-            if len(self.distances) == int(
-                len(self.pixels) * (len(self.pixels) - 1) / 2
-            ):
-                self.meters = self.calculate_meters(self.distances)
-            else:
-                raise ValueError(
-                    "distances must have the correct number of elements. "
-                    f"number of distance ellemtns {len(self.distances)}."
-                    f"Expected {len(self.pixels) * (len(self.pixels) - 1) / 2}"
-                )
+        if self.distances is not None:
+            converted_distances = self.convert_str_keys_to_tuples(
+                self.distances
+            )
+            if len(self.meters) == 0:
+                if len(self.distances) == int(
+                    len(self.pixels) * (len(self.pixels) - 1) / 2
+                ):
+                    self.meters = self.calculate_meters(converted_distances)
+                else:
+                    raise ValueError(
+                        "distances must have the correct number of elements. "
+                        f"number of distance ellemtns {len(self.distances)}."
+                        f"Expected {len(self.pixels) * (len(self.pixels) - 1) / 2}"
+                    )
 
         if len(self.pixels) != len(self.meters):
             raise ValueError("pixels and meters must have the same length")
