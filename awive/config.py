@@ -14,15 +14,16 @@ from pydantic import Field
 
 
 class BaseModel(RawBaseModel):
+    """Base model for all configurations."""
+
     @staticmethod
-    def from_fp(fp: Path):
+    def from_fp(fp: Path) -> "Config":
         """Load config from json."""
         if fp.suffix == ".json":
             return Config(**json.load(fp.open()))
-        elif fp.suffix == ".yaml":
+        if fp.suffix == ".yaml":
             return Config(**yaml.safe_load(fp.open()))
-        else:
-            raise ValueError(f"File extension not supported: {fp.suffix}")
+        raise ValueError(f"File extension not supported: {fp.suffix}")
 
 
 class GroundTruth(BaseModel):
@@ -38,11 +39,15 @@ class ConfigGcp(BaseModel):
     apply: bool
     pixels: list[tuple[int, int]] = Field(
         ...,
-        description="at least four pixels coordinates: [[x1,y2], ..., [x4,y4]]",
+        description=(
+            "at least four pixels coordinates: [[x1,y2], ..., [x4,y4]]"
+        ),
     )
     meters: list[tuple[float, float]] = Field(
         default_factory=lambda: [],
-        description="at least four meters coordinates: [[x1,y2], ..., [x4,y4]]",
+        description=(
+            "at least four meters coordinates: [[x1,y2], ..., [x4,y4]]"
+        ),
     )
     distances: dict[str, float] | None = Field(
         None, description="distances in meters between the GCPs"
@@ -62,7 +67,10 @@ class ConfigGcp(BaseModel):
     def calculate_meters(
         self, distances: dict[tuple[int, int], float]
     ) -> list[tuple[float, float]]:
-        def di(i: int, j: int):
+        """Calculate meters coordinates from distances."""
+
+        def di(i: int, j: int) -> float | None:
+            """Return distance between two points."""
             return distances.get((i, j)) or distances.get((j, i))
 
         d = np.array(
@@ -93,8 +101,8 @@ class ConfigGcp(BaseModel):
         eigvals = eigvals[idx][:dim]
         eigvecs = eigvecs[:, idx][:, :dim]
         # Compute coordinates using the positive eigenvalues
-        l = np.diag(np.sqrt(eigvals))
-        x = eigvecs @ l
+        l_result = np.diag(np.sqrt(eigvals))
+        x = eigvecs @ l_result
         x[:, 0] *= -1
         return x.tolist()
 
@@ -104,7 +112,8 @@ class ConfigGcp(BaseModel):
         """Convert string-represented tuple keys to actual tuples.
 
         Args:
-            input_dict: Dictionary with string keys representing tuples to convert.
+            input_dict: Dictionary with string keys representing tuples to
+                convert.
 
         Returns:
             Dictionary with keys converted to integer tuples.
@@ -132,7 +141,8 @@ class ConfigGcp(BaseModel):
                 raise ValueError(f"Key '{key}' is not a tuple")
         return result
 
-    def model_post_init(self, __context: Any):
+    def model_post_init(self, __context: Any) -> None:
+        """Post-initialization validation."""
         if len(self.pixels) < 4:
             raise ValueError(
                 f"at least four coordinates are required: {len(self.pixels)}"
@@ -152,7 +162,8 @@ class ConfigGcp(BaseModel):
                     raise ValueError(
                         "distances must have the correct number of elements. "
                         f"number of distance ellemtns {len(self.distances)}."
-                        f"Expected {len(self.pixels) * (len(self.pixels) - 1) / 2}"
+                        "Expected "
+                        f"{len(self.pixels) * (len(self.pixels) - 1) / 2}"
                     )
 
         if len(self.pixels) != len(self.meters):
@@ -214,7 +225,8 @@ class Dataset(BaseModel):
     video_fp: Path | None = Field(default=None)
     gcp: ConfigGcp
 
-    def model_post_init(self, __context: Any):
+    def model_post_init(self, __context: Any) -> None:
+        """Post-initialization validation."""
         if self.image_dataset_dp is None and self.video_fp is None:
             raise ValueError("Image dataset path not provided")
 

@@ -40,27 +40,48 @@ requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
 [tool.ruff]
-exclude = ["*.pyi"]
 line-length = 79
 
 [tool.ruff.lint]
 select = [
-    "I",    # see: https://pypi.org/project/isort/
+    "A",    # see: https://pypi.org/project/flake8-builtins
+    "ANN",  # flake8-annotations (for type hints in signatures)
+    "B",    # see: https://pypi.org/project/flake8-bugbear
+    "C4",   # see: https://pypi.org/project/flake8-comprehensions
+    "D",    # pydocstyle (for docstring conventions like missing args/raises)
+    "E",    # pycodestyle errors
+    "EXE",  # see: https://pypi.org/project/flake8-executable
+    "I",    # isort
+    "ISC",  # see: https://pypi.org/project/flake8-implicit-str-concat
+    "N",    # pep8-naming
+    "PERF", # perflint
+    "PLC",  # Pylint convention
+    "PLE",  # Pylint error
+    "PLW",  # Pylint warning
+    "PT",   # see: https://pypi.org/project/flake8-pytest-style
+    "Q",    # see: https://pypi.org/project/flake8-quotes
+    "RET",  # see: https://pypi.org/project/flake8-return
     "RUF",  # Ruff-specific rules
-    "W",    # see: https://pypi.org/project/pycodestyle
-]
-external = [
-    "DOC",
+    "SIM",  # see: https://pypi.org/project/flake8-simplify
+    "TID",  # see: https://pypi.org/project/flake8-tidy-imports/
+    "UP",   # pyupgrade
+    "W",    # pycodestyle warnings
 ]
 ignore = [
+    # --- Annotation Rules ---
     # Do not require type hints for *args and **kwargs
     "ANN002",
     "ANN003",
     # Allow use of Any type
     "ANN401",
-    # Do not require docstrings in __init__ and modules
-    "D100",
-    "D104",
+
+    # --- Docstring Rules ---
+    # Do not require docstrings in modules, packages, or __init__
+    "D100", # Missing docstring in public module
+    "D104", # Missing docstring in public package
+    "D107", # Missing docstring in __init__
+
+    # --- Other Rules ---
     # Allow use of assert
     "S101",
 ]
@@ -70,8 +91,8 @@ convention = "google"
 
 [tool.docformatter]
 recursive = true
-wrap-summaries=79
-wrap-descriptions=79
+wrap-summaries=72
+wrap-descriptions=72
 
 [tool.isort]
 multi_line_output = 3

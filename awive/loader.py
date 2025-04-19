@@ -3,8 +3,8 @@
 import abc
 import argparse
 import os
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 import cv2
 import numpy as np
@@ -33,11 +33,15 @@ class Loader(metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def width(self) -> int: ...
+    def width(self) -> int:
+        """Get the width of the image."""
+        ...
 
     @property
     @abc.abstractmethod
-    def height(self) -> int: ...
+    def height(self) -> int:
+        """Get the height of the image."""
+        ...
 
     @property
     def index(self) -> int:
@@ -94,10 +98,12 @@ class ImageLoader(Loader):
 
     @property
     def width(self) -> int:
+        """Get the width of the image."""
         return self._width
 
     @property
     def height(self) -> int:
+        """Get the height of the image."""
         return self._height
 
     def has_images(self) -> bool:
@@ -173,13 +179,15 @@ class VideoLoader(Loader):
 
     @property
     def width(self) -> int:
+        """Get the width of the image."""
         return self._width
 
     @property
     def height(self) -> int:
+        """Get the height of the image."""
         return self._height
 
-    def has_images(self):
+    def has_images(self) -> bool:
         """Check if the source contains one more frame."""
         if not self._cap.isOpened():
             return False
@@ -202,7 +210,7 @@ class VideoLoader(Loader):
         self._cap.release()
 
 
-def make_loader(config: DatasetConfig):
+def make_loader(config: DatasetConfig) -> Loader:
     """Make a loader based on config."""
     # check if the image_folder_path contains any jpg or png file
     if config.image_dataset_dp is not None:
@@ -217,13 +225,15 @@ def get_loader(config_fp: Path) -> Loader:
     """Return a ImageLoader or VideoLoader class.
 
     Args:
-        config_path: Path to the config file.
-        video_identifier: Identifier of the video in the config file.
+        config_fp: Path to the config file.
+
+    Returns:
+        Loader: ImageLoader or VideoLoader class.
     """
     return make_loader(Config.from_fp(config_fp).dataset)
 
 
-def main(config_path: Path, video_identifier: str, save_image: bool):
+def main(config_path: Path, video_identifier: str, save_image: bool) -> None:
     """Execute a basic example of loader."""
     loader = get_loader(config_path)
     image = loader.read()

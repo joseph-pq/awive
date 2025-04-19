@@ -25,10 +25,10 @@ def get_magnitude(kp1: cv2.KeyPoint, kp2: cv2.KeyPoint) -> float:
     # return abs(kp2.pt[0] - kp1.pt[0])
 
 
-def get_angle(kp1, kp2):
+def get_angle(kp1: cv2.KeyPoint, kp2: cv2.KeyPoint) -> float:
     """Get angle between two key points."""
     return (
-        math.atan2(kp2.pt[1] - kp1.pt[1], kp2.pt[0] - kp1.pt[0])
+        math.atan2(kp2.pt[1] - kp1.pt[1], kp2.pt[0] - kp1.pt[0])  # pyright: ignore[reportAttributeAccessIssue]
         * 180
         / math.pi
     )
@@ -38,15 +38,16 @@ def compute_velocity(
     kp1: cv2.KeyPoint,
     kp2: cv2.KeyPoint,
     pixels_to_meters: float,
-    frames,
+    frames: int,
     fps: float,
-):
-    """Compute velocity in m/s
+) -> float:
+    """Compute velocity in m/s.
 
     Args:
         kp1: Begin keypoint
         kp2: End keypoint
-        pixels_to_meters: Conversion factor from pixels to meters (meters / pixels)
+        pixels_to_meters: Conversion factor from pixels to meters
+            (meters / pixels)
         frames: Number of frames that the keypoint has been tracked
         fps: Frames per second
     """
@@ -56,7 +57,9 @@ def compute_velocity(
     return get_magnitude(kp1, kp2) * pixels_to_meters * fps / frames
 
 
-def reject_outliers(data: NDArray[np.float32], m=2.0) -> NDArray[np.float32]:
+def reject_outliers(
+    data: NDArray[np.float32], m: float = 2.0
+) -> NDArray[np.float32]:
     """Reject outliers from a dataset based on the median absolute deviation.
 
     Args:
@@ -70,12 +73,14 @@ def reject_outliers(data: NDArray[np.float32], m=2.0) -> NDArray[np.float32]:
     median_deviation = np.median(deviation)
     if median_deviation != 0:
         return data[(deviation / median_deviation) < m]
-    else:
-        return data
+    return data
 
 
-def compute_stats(velocity: list[list[float]], hist=False):
-    """Compute statistics of the velocity
+def compute_stats(
+    velocity: list[list[float]], hist: bool = False
+) -> tuple[float, float, float, float, int]:
+    """Compute statistics of the velocity.
+
     Args:
         velocity: List of velocities
         hist: If True, show histogram of velocities
@@ -97,7 +102,7 @@ def compute_stats(velocity: list[list[float]], hist=False):
         # plt.xlabel('Data');
         # plt.show()
 
-    return v.mean(), v.max(), v.min(), np.std(v), len(v)
+    return v.mean(), v.max(), v.min(), np.std(v), len(v)  # type: ignore[reportReturnType]
 
 
 class OTV:
@@ -162,7 +167,8 @@ class OTV:
         self.winsize = config.lk.winsize
         self.prev_gray = prev_gray
 
-    def valid_displacement(self, kp1, kp2):
+    def valid_displacement(self, kp1: cv2.KeyPoint, kp2: cv2.KeyPoint) -> bool:
+        """Validate displacement of keypoints."""
         magnitude = get_magnitude(
             kp1, kp2
         )  # only to limit the research window
@@ -173,12 +179,10 @@ class OTV:
             angle = angle + 360
         if angle == 0 or angle == 360:
             return True
-        if self._partial_min_angle <= angle <= self._partial_max_angle:
-            return True
-        return False
+        return self._partial_min_angle <= angle <= self._partial_max_angle
 
-    def valid_trajectory(self, kp1: cv2.KeyPoint, kp2: cv2.KeyPoint):
-        """Final filter of keypoints"""
+    def valid_trajectory(self, kp1: cv2.KeyPoint, kp2: cv2.KeyPoint) -> bool:
+        """Final filter of keypoints."""
         magnitude = get_magnitude(kp1, kp2)
         if magnitude < self._final_min_distance:
             return False
@@ -187,16 +191,14 @@ class OTV:
             angle = angle + 360
         if angle == 0 or angle == 360:
             return True
-        if self._final_min_angle <= angle <= self._final_max_angle:
-            return True
-        return False
+        return self._final_min_angle <= angle <= self._final_max_angle
 
-    def _apply_mask(self, image) -> NDArray:
+    def _apply_mask(self, image: NDArray) -> NDArray:
         if self._mask is not None:
             image = image * self._mask
         return image
 
-    def _init_subregion_list(self, dimension, width):
+    def _init_subregion_list(self, dimension: int, width: int) -> list[float]:
         ret = []
         n_regions = math.ceil(width / self._step)
         for _ in range(n_regions):
@@ -210,7 +212,7 @@ class OTV:
     def predict_kps(
         self, prev_frame: NDArray, curr_frame: NDArray, kps: list[cv2.KeyPoint]
     ) -> tuple[list[cv2.KeyPoint], list[bool]]:
-        """Predict keypoints using Lucas-Kanade"""
+        """Predict keypoints using Lucas-Kanade."""
         pts2, status, _ = cv2.calcOpticalFlowPyrLK(
             prev_frame,
             curr_frame,
@@ -233,9 +235,9 @@ class OTV:
         return kps, status
 
     def run(
-        self, loader: Loader, show_video=False
+        self, loader: Loader, show_video: bool = False
     ) -> dict[str, dict[str, float]]:
-        """Execute OTV and get velocimetry"""
+        """Execute OTV and get velocimetry."""
         # initialze parametrers
         detector = cv2.FastFeatureDetector_create()
         prev_frame = None
@@ -252,12 +254,16 @@ class OTV:
         # valid: list[list[bool]] = [
         #     []
         # ] * loader.total_frames
-        # velocity_mem: list[list[float]] = [[] for _ in range(loader.total_frames)]
+        # velocity_mem: list[list[float]] = [
+        #     [] for _ in range(loader.total_frames)
+        # ]
         velocities: list[list[float]] = [
             [] for _ in range(loader.total_frames)
         ]
         # angles: list[list[float]] = [[] for _ in range(loader.total_frames)]
-        # distance: list[list[float]] = [[] for _ in range(loader.total_frames)]
+        # distance: list[list[float]] = [
+        #     [] for _ in range(loader.total_frames)
+        # ]
         path: list[list[int]] = [[] for _ in range(loader.total_frames)]
         # keypoints_mem_current: list[list[cv2.KeyPoint]] = []
         # keypoints_mem_predicted: list[list[cv2.KeyPoint]] = []
@@ -409,8 +415,8 @@ class OTV:
             # keypoints_mem_current.append(prev_kps)
             # keypoints_mem_predicted.append(curr_kps)
 
-            # TODO: I guess the swap is not needed such as in the next iteration
-            # the keypoints_predicted will be cleaned
+            # TODO: I guess the swap is not needed such as in the next
+            # iteration the keypoints_predicted will be cleaned
             if len(curr_kps) != 0:
                 prev_kps, curr_kps = curr_kps, prev_kps
         np.save("traj.npy", traj_map)
@@ -451,7 +457,7 @@ def draw_vectors(
     old_list: list[cv2.KeyPoint],
     masks: list[NDArray[np.uint8]],
 ) -> NDArray[np.uint8]:
-    """Draw vectors of velocity and return the output and update mask"""
+    """Draw vectors of velocity and return the output and update mask."""
     thick = 1
     # if len(image.shape) == 3:
     #     color: tuple | int = (0, 255, 0)
@@ -485,16 +491,15 @@ def draw_vectors(
     temp_mask[total_mask == 0] = 255
     total_mask = cv2.applyColorMap(total_mask, cv2.COLORMAP_JET)
     total_mask[temp_mask == 255] = 0
-    output = cv2.add(image, total_mask)
-    return output
+    return cv2.add(image, total_mask)
 
 
 def run_otv(
     config_path: Path,
-    show_video=False,
-    debug=0,
+    show_video: bool = False,
+    debug: int = 0,
 ) -> tuple[dict[str, dict[str, float]], np.ndarray | None]:
-    """Basic example of OTV
+    """Basic example of OTV.
 
     Processing for each frame
         1. Crop image using gcp.pixels parameter

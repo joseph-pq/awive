@@ -19,7 +19,8 @@ def crop_to_gcp_area(
         pixels_coordinates: List of (x, y) pixel coordinates of GCPs.
 
     Returns:
-        Cropped image and updated pixel coordinates relative to the cropped area.
+        Cropped image and updated pixel coordinates relative to the cropped
+            area.
     """
     x_min, y_min = np.min(pixels_coordinates, axis=0)
     x_max, y_max = np.max(pixels_coordinates, axis=0)
@@ -59,17 +60,17 @@ def apply_lens_correction(
     mtx[1, 1] = f  # define focal length y
 
     # correct image for lens distortion
-    corr_img = cv2.undistort(img, mtx, dist)
-
-    return corr_img
+    return cv2.undistort(img, mtx, dist)
 
 
 # def xy_coord(df: list[list[int]]) -> int:
-#     """Turn longitudes and latitudes into XY coordinates using an Equirectangular
+#     """Turn longitudes and latitudes into XY coordinates using an .
+#       Equirectangular
 #     projection. Only applicable on a small scale.
 
 #     Args:
-#         df (pd.DataFrame): DataFrame containing columns with longitudes and latitudes.
+#         df (pd.DataFrame): DataFrame containing columns with longitudes and
+#           latitudes.
 
 #     Returns:
 #         int: Placeholder return value.
@@ -81,7 +82,9 @@ def apply_lens_correction(
 
 #     # # create new DataFrame containing original coordinates in metres
 #     # df_new = pd.DataFrame()
-#     # df_new["x"] = [r * math.radians(lon) * cos_phi_0 for lon in df.lon.values]
+#     # df_new["x"] = [
+#       r * math.radians(lon) * cos_phi_0 for lon in df.lon.values
+#   ]
 #     # df_new["y"] = [r * math.radians(lat) for lat in df.lat.values]
 
 #     # return df_new
@@ -96,13 +99,17 @@ def build_orthorect_params(
     lonlat: bool = False,
 ) -> tuple[NDArray, NDArray]:
     """Image orthorectification parameters based on 4 GCPs.
+
     GCPs need to be at water level.
 
     Args:
         img: Original image.
-        pixels_coordinates: DataFrame containing the xy-coordinates of the GCPs in the imagery in pixels.
-        meters_coordinates: DataFrame containing the real xy-coordinates of the GCPs in metres.
-        required_ppm: Pixels per meter in the corrected imagery. This will be used to scale the coordinates.
+        pixels_coordinates: DataFrame containing the xy-coordinates of the
+            GCPs in the imagery in pixels.
+        meters_coordinates: DataFrame containing the real xy-coordinates of
+            the GCPs in metres.
+        ppm: Pixels per meter in the corrected imagery. This will be
+            used to scale the coordinates.
         lonlat: Convert longitudes/latitudes to meters.
 
     Returns:
@@ -150,7 +157,9 @@ def build_orthorect_params(
 def apply_orthorec(
     img: np.ndarray, m: np.ndarray, c: np.ndarray
 ) -> np.ndarray:
-    """Image orthorectification based on parameters found with orthorect_param().
+    """Image orthorectification.
+
+    Based on parameters found with orthorect_param().
 
     Args:
         img: Original image.
@@ -160,15 +169,12 @@ def apply_orthorec(
     Returns:
         Orthorectified image.
     """
-
     # define corrected image dimensions based on C
     cols = int(np.ceil(max(c[:, 0])))
     rows = int(np.ceil(max(c[:, 1])))
 
     # orthorectify image
-    corr_img = cv2.warpPerspective(img, m, (cols, rows))
-
-    return corr_img
+    return cv2.warpPerspective(img, m, (cols, rows))
 
 
 def apply_color_correction(
@@ -177,7 +183,9 @@ def apply_color_correction(
     beta: float | None = None,
     gamma: float = 0.5,
 ) -> np.ndarray:
-    """Grey scaling, contrast- and gamma correction. Both alpha and beta need to
+    """Color correction.
+
+    Grey scaling, contrast- and gamma correction. Both alpha and beta need to
     be defined in order to apply contrast correction.
 
     Args:
@@ -197,14 +205,12 @@ def apply_color_correction(
         corr_img = cv2.convertScaleAbs(corr_img, alpha=alpha, beta=beta)
 
     # apply gamma correction
-    invGamma = 1.0 / gamma
+    inv_gamma = 1.0 / gamma
     table = np.array(
-        [((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]
+        [((i / 255.0) ** inv_gamma) * 255 for i in np.arange(0, 256)]
     ).astype(np.uint8)
 
-    corr_img = cv2.LUT(corr_img, table)
-
-    return corr_img
+    return cv2.LUT(corr_img, table)
 
 
 if __name__ == "__main__":

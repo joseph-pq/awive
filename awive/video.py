@@ -18,16 +18,15 @@ RESIZE_RATIO = 5
 def play(
     loader: Loader,
     formatter: Formatter,
-    undistort=True,
-    roi=True,
-    time_delay=1,
-    resize=False,
+    undistort: bool = True,
+    roi: bool = True,
+    time_delay: int = 1,
+    resize: bool = False,
     wlcrop: tuple[tuple[int, int], tuple[int, int]] | None = None,
-    blur=True,
+    blur: bool = True,
     resize_factor: float | None = None,
 ) -> None:
-    """
-    Plays a video.
+    """Plays a video.
 
     Args:
         loader: The loader object to read images.
@@ -49,19 +48,14 @@ def play(
         if undistort:
             image = formatter.apply_distortion_correction(image)
         if roi:
-            image = formatter.apply_roi_extraction(
-                image, resize_factor=resize_factor
-            )
+            image = formatter.apply_roi_extraction(image)
         elif wlcrop is not None:
             image = image[
                 wlcrop[0][0] : wlcrop[0][1], wlcrop[1][0] : wlcrop[1][1]
             ]
         if blur:
             image = cv2.medianBlur(image, 5)
-        if resize:
-            lil_im = cv2.resize(image, (1000, 1000))
-        else:
-            lil_im = image
+        lil_im = cv2.resize(image, (1000, 1000)) if resize else image
         cv2.imshow("Video", lil_im)
         np.save(f"images/im_{i:04}.npy", lil_im)
         if cv2.waitKey(time_delay) & 0xFF == ord("q"):
@@ -74,15 +68,14 @@ def play(
 def main(
     config_fp: Path,
     video_identifier: str,
-    undistort=True,
-    roi=True,
-    time_delay=1,
-    resize=True,
-    wlcrop=True,
-    blur=True,
+    undistort: bool = True,
+    roi: bool = True,
+    time_delay: int = 1,
+    resize: bool = True,
+    wlcrop: bool = True,
+    blur: bool = True,
 ) -> None:
-    """
-    Read configurations and play video.
+    """Read configurations and play video.
 
     Args:
         config_fp: File path to the configuration file.
