@@ -9,9 +9,9 @@
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![pre-commit](https://img.shields.io/badge/Pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 <br>
-[![Code Quality](https://github.com/natek-systems/n-flow/actions/workflows/code-quality.yml/badge.svg)](https://github.com/natek-systems/n-flow/actions/workflows/code-quality.yml)
-[![Tests](https://github.com/natek-systems/n-flow/actions/workflows/tests.yaml/badge.svg)](https://github.com/natek-systems/n-flow/actions/workflows/tests.yaml)
-[![codecov](https://codecov.io/gh/natek-systems/n-flow/graph/badge.svg?token=JYOVV0D79Iq)](https://codecov.io/gh/natek-systems/n-flow)
+[![Code Quality](https://github.com/joseph-pq/awive/actions/workflows/code-quality.yml/badge.svg)](https://github.com/joseph-pq/awive/actions/workflows/code-quality.yml)
+[![Tests](https://github.com/joseph-pq/awive/actions/workflows/tests.yaml/badge.svg)](https://github.com/joseph-pq/awive/actions/workflows/tests.yaml)
+[![codecov](https://codecov.io/gh/joseph-pq/awive/graph/badge.svg?token=JYOVV0D79Iq)](https://codecov.io/gh/joseph-pq/awive)
 <br>
 [![license](https://img.shields.io/badge/License-MIT-green.svg?labelColor=gray)](https://github.com/nathanpainchaud/lightning-hydra-template?tab=MIT-1-ov-file)
 
