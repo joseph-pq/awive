@@ -15,13 +15,19 @@ dependencies = [
 dev = [
     "dvc-gdrive>=3.0.1",
     "ipython>=8.18.1",
-    "matplotlib>=3.9.4",
-    "opencv-stubs>=0.0.11",
     "pyfzf>=0.3.1",
-    "pyqt5>=5.15.11",
-    "pytest>=8.3.5",
     "requests>=2.31.0",
-    "tk>=0.1.0",
+    {include-group = "test"},
+    {include-group = "plots"},
+    {include-group = "stubs"},
+    {include-group = "docs"},
+]
+test = [
+    "pytest-cov>=6.1.1",
+    "pytest>=8.3.5",
+]
+stubs = [
+    "opencv-stubs>=0.0.11",
     "typer>=0.15.2",
     "types-pyyaml>=6.0.12.20241230",
     "types-requests>=2.31.0.20240125",
@@ -32,6 +38,8 @@ docs = [
     "mkdocstrings-python>=1.11.1",
 ]
 plots = [
+    "pyqt5>=5.15.11",
+    "tk>=0.1.0",
     "matplotlib>=3.9.2",
 ]
 
