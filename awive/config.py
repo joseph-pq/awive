@@ -318,6 +318,14 @@ class WaterLevel(BaseModel):
     kernel_size: int
 
 
+class WaterFlow(BaseModel):
+    """Configuration Water Flow."""
+
+    area: float = Field(
+        ..., description=("Area of the flow in square meters.")
+    )
+
+
 class Config(BaseModel):
     """Config class for awive."""
 
@@ -326,6 +334,7 @@ class Config(BaseModel):
     stiv: Stiv | None = None
     preprocessing: PreProcessing
     water_level: WaterLevel | None = None
+    water_flow: WaterFlow
     lines: list[int] = Field(
         ...,
         description="Height of the lines to extract the velocity vector",
