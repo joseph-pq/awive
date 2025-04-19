@@ -2,6 +2,7 @@
 
 import argparse
 import time
+from pathlib import Path
 
 from awive.algorithms import (
     otv,
@@ -12,25 +13,38 @@ from awive.algorithms import (
 FOLDER_PATH = "/home/joseph/Documents/Thesis/Dataset/config"
 
 
-def execute_method(method_name, station_name, video_identifier, config_path):
+def execute_method(
+    method_name: str,
+    station_name: str,
+    video_identifier: str,
+    config_path: Path,
+) -> None:
     """Execute a method."""
     print(method_name)
     t = time.process_time()
     if method_name == "sti":
-        ret = sti.main(config_path, video_identifier)
+        ret = sti.main(config_path)
     elif method_name == "otv":
-        ret, image = otv.run_otv(config_path, video_identifier)
+        ret, image = otv.run_otv(config_path)
     else:
         ret = None
     elapsed_time = time.process_time() - t
-    for i in range(len(ret)):
-        print(ret[str(i)]["velocity"])
-    print(f"{elapsed_time=}")
+    if ret is not None:
+        for i in range(len(ret)):
+            print(ret[str(i)]["velocity"])
+        print(f"{elapsed_time=}")
 
 
-def main(station_name, video_identifier, config_path, th):
+def main(
+    station_name: str,
+    video_identifier: str,
+    config_path: Path,
+    th: float,
+) -> None:
     """Execute one method methods."""
-    idpp = water_level_hist.main(config_path, video_identifier)
+    idpp = water_level_hist.main(config_path)
+    if idpp is None:
+        raise ValueError("No image found")
     if idpp > th:
         execute_method("sti", station_name, video_identifier, config_path)
     else:
@@ -54,10 +68,10 @@ if __name__ == "__main__":
         default=FOLDER_PATH,
     )
     args = parser.parse_args()
-    CONFIG_PATH = f"{args.path}/{args.station_name}.json"
+    config_path = Path(f"{args.path}/{args.station_name}.json")
     main(
         station_name=args.station_name,
         video_identifier=args.video_identifier,
-        config_path=CONFIG_PATH,
+        config_path=config_path,
         th=args.th,
     )

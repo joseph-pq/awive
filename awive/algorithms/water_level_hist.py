@@ -1,4 +1,5 @@
 """Water Level Detector using method described in.
+
 Embedded implementation of image-based water-level measurement system
 by:
 - Kim, J.
@@ -11,6 +12,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+from numpy.typing import NDArray
 
 from awive.config import Config
 from awive.loader import make_loader
@@ -21,7 +23,7 @@ FOLDER_PATH = "/home/joseph/Documents/Thesis/Dataset/config"
 class WaterlevelDetector:
     """Detect water level."""
 
-    def __init__(self, config_fp: Path):
+    def __init__(self, config_fp: Path) -> None:
         """Initialize."""
         config = Config.from_fp(config_fp)
         if config.water_level is None:
@@ -39,7 +41,8 @@ class WaterlevelDetector:
         ksize = config.water_level.kernel_size
         self._kernel = np.ones((ksize, ksize), np.uint8)
 
-    def _get_difference_accumulation(self, plot):
+    def _get_difference_accumulation(self, plot: bool) -> float | None:
+        """Get difference accumulation."""
         # cnt = 0
         # buffer = []
         accumulated_image = np.zeros(self._roi_shape)
@@ -54,7 +57,7 @@ class WaterlevelDetector:
         np.save("acc0.npy", image)
         image = cv2.medianBlur(image, 5)
 
-        for i in range(self._buffer_length):
+        for _ in range(self._buffer_length):
             if not self._loader.has_images():
                 print("broke")
                 return None
@@ -77,7 +80,7 @@ class WaterlevelDetector:
         return d
 
     @staticmethod
-    def _get_threshold(image):
+    def _get_threshold(image: NDArray) -> tuple[int, NDArray]:
         """Get threshold."""
         hist, _ = np.histogram(image.ravel(), density=True, bins=255)
         max_idx = 0
@@ -90,7 +93,7 @@ class WaterlevelDetector:
         threshold = int(255 * (max_idx + 1) / len(hist))
         return threshold, hist
 
-    def _compute_water_level(self, image, threshold):
+    def _compute_water_level(self, image: NDArray, threshold: float) -> float:
         """Use given threshold compute the water level of the image."""
         print("threshold:", threshold)
         image = (image > threshold).astype(np.uint8)
@@ -109,7 +112,7 @@ class WaterlevelDetector:
         np.save("out2.npy", image)
         return height
 
-    def get_water_level(self, plot):
+    def get_water_level(self, plot: bool = False) -> float | None:
         """Calculate and return water level."""
         return self._get_difference_accumulation(plot)
         # np.save('out0.npy', accumulated_image)
@@ -119,12 +122,10 @@ class WaterlevelDetector:
         # return height
 
 
-def main(config_path: Path, plot=False) -> None:
+def main(config_path: Path, plot: bool = False) -> float | None:
     """Execute basic example of water level detector."""
     water_level_detector = WaterlevelDetector(config_path)
-    idpp = water_level_detector.get_water_level(plot)
-    return idpp
-    # print('water level:', water_level)
+    return water_level_detector.get_water_level(plot)
 
 
 if __name__ == "__main__":

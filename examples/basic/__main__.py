@@ -21,14 +21,14 @@ def download_file(file_id: str, local_filename: str) -> str:
         "https://drive.google.com/uc?"
         f"export=download&confirm=9iBg&id={file_id}"
     )
-    CHUNK_SIZE: int = 4194304  # 4MB
+    chunk_size: int = 4194304  # 4MB
     total_bytes: float = 0
     print(f"Downloading file from {url}")
     start: float = time.time()
     with requests.get(url, stream=True) as r:
         r.raise_for_status()
         with open(local_filename, "wb") as f:
-            for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
+            for chunk in r.iter_content(chunk_size=chunk_size):
                 total_bytes += len(chunk)
                 print(
                     f"\rDownloaded: {(total_bytes / 1024 / 1024):0.2f} MB",

@@ -1,8 +1,8 @@
 """Correct distortion of videos.
 
 This module contains classes and functions needed to correct distortion of
-videos, either intrinsic or extrinsic to the camera. It also saves the corrected
-frames in a defined directory path.
+videos, either intrinsic or extrinsic to the camera. It also saves the
+corrected frames in a defined directory path.
 
 """
 
@@ -43,7 +43,10 @@ class Formatter:
         """Initialize Formatter object.
 
         Args:
-            config: Configuration object containing settings for processing.
+            dataset_config: Configuration object containing settings for
+                processing.
+            preprocessing_config: Configuration object containing settings for
+                preprocessing.
 
         Raises:
             VideoSourceError: If no sample image is found.
@@ -67,16 +70,10 @@ class Formatter:
         self._rotation_angle = self.preprocessing.rotate_image
         self._rotation_matrix = self._get_rotation_matrix()
         self._slice = tuple(
-            map(
-                lambda x: slice(x[0], x[1]),
-                zip(*self.preprocessing.roi),
-            )
+            slice(x[0], x[1]) for x in zip(*self.preprocessing.roi)
         )
         self._pre_slice = tuple(
-            map(
-                lambda x: slice(x[0], x[1]),
-                zip(*self.preprocessing.pre_roi),
-            )
+            slice(x[0], x[1]) for x in zip(*self.preprocessing.pre_roi)
         )
 
     def _get_orthorectification_params(
@@ -104,7 +101,7 @@ class Formatter:
         )
         return m, c
 
-    def _get_rotation_matrix(self):
+    def _get_rotation_matrix(self) -> NDArray:
         """Calculate the rotation matrix for image rotation.
 
         Based on:
@@ -147,7 +144,7 @@ class Formatter:
             return image
         return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    def show_entire_image(self):
+    def show_entire_image(self) -> None:
         """Set slice to cover the entire image."""
         w_slice = slice(0, 6000)
         h_slice = slice(0, 6000)
@@ -156,10 +153,7 @@ class Formatter:
     def _rotate(self, image: np.ndarray) -> np.ndarray:
         if self._rotation_angle != 0:
             # rotate image with the new bounds and translated rotation matrix
-            rotated_mat = cv2.warpAffine(
-                image, self._rotation_matrix, self._bound
-            )
-            return rotated_mat
+            return cv2.warpAffine(image, self._rotation_matrix, self._bound)
         return image
 
     def _pre_crop(self, image: np.ndarray) -> np.ndarray:
@@ -176,7 +170,9 @@ class Formatter:
         self._rotation_matrix = self._get_rotation_matrix()
         return new_image
 
-    def apply_roi_extraction(self, image: NDArray, gray=True) -> NDArray:
+    def apply_roi_extraction(
+        self, image: NDArray, gray: bool = True
+    ) -> NDArray:
         """Apply image rotation, cropping, and convert to grayscale.
 
         Args:
@@ -280,7 +276,7 @@ def main(config_fp: Path, save_image: bool = False) -> None:
     """Demonstrate basic example of video correction.
 
     Args:
-        config_path: Path to the configuration file.
+        config_fp: Path to the configuration file.
         save_image: Whether to save the corrected image or display it.
     """
     config: Config = Config.from_fp(config_fp)

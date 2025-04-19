@@ -30,8 +30,8 @@ def draw_velocities(
     velocity_values = [v["velocity"] for v in velocities.values()]
 
     # Determine min and max velocities
-    min_velocity = min(min(velocity_values), 0)
-    max_velocity = max(max(velocity_values), max_velocity)
+    min_velocity = min(*velocity_values, 0)
+    max_velocity = max(*velocity_values, max_velocity)
     max_length = image.shape[1] // 4
     thickness = image.shape[0] // 100
 
