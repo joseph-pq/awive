@@ -33,12 +33,3 @@ pip install awive
 ```
 
 ## Usage
-
-If you want to know how to configure the json file, use the [awive configurator](https://github.com/JosephPenaQuino/awive-configurator)
-Execute the commands below:
-
-```
-pyenv local 3.11.2
-poetry install
-poetry run python -m awive.otv river-brenta d0000 -v
-```
