@@ -533,16 +533,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "config",
-        help="Config path to the config folder",
+        help="Path to the config file",
         type=Path,
     )
     parser.add_argument(
-        "video_identifier",
-        help="Index of the video of the json config file",
-        type=str,
-    )
-    parser.add_argument(
-        "-d", "--debug", help="Activate debug mode", type=int, default=0
+        "-d", "--debug", help="Enable debug mode", type=int, default=0
     )
     parser.add_argument(
         "-v",
