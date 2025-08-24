@@ -318,11 +318,32 @@ class WaterLevel(BaseModel):
     kernel_size: int
 
 
+class Depth(BaseModel):
+    """Configuration Depth."""
+
+    x: float = Field(..., description="Horizontal position in pixels.")
+    y: float = Field(..., description="Vertical position in pixels.")
+    z: float = Field(..., description="Depth in meters.")
+
+
+class Profile(BaseModel):
+    """Configuration Profile."""
+
+    height: float = Field(..., description="Height of the profile in meters.")
+    depths: list[Depth] = Field(..., description="Depths of the profile.")
+
+
 class WaterFlow(BaseModel):
     """Configuration Water Flow."""
 
     area: float = Field(
         ..., description=("Area of the flow in square meters.")
+    )
+    profile: Profile | None = Field(
+        default=None, description="Profile of the river."
+    )
+    roughness: float = Field(
+        default=8, description="Manning's roughness coefficient."
     )
 
 
@@ -335,7 +356,3 @@ class Config(BaseModel):
     preprocessing: PreProcessing
     water_level: WaterLevel | None = None
     water_flow: WaterFlow
-    lines: list[int] = Field(
-        ...,
-        description="Height of the lines to extract the velocity vector",
-    )
