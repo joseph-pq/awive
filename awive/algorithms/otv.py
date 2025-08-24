@@ -497,9 +497,11 @@ def draw_vectors(
 def run_otv(
     config_path: Path,
     show_video: bool = False,
-    debug: int = 0,
 ) -> tuple[dict[str, dict[str, float]], np.ndarray | None]:
     """Basic example of OTV.
+
+    After the rotation, the water must flow from right to left.
+
 
     Processing for each frame
         1. Crop image using gcp.pixels parameter
@@ -511,20 +513,29 @@ def run_otv(
         7. Convert to gray scale
     """
     config = Config.from_fp(config_path)
+    # Load first image
     loader: Loader = make_loader(config.dataset)
-    formatter = Formatter(config.dataset, config.preprocessing)
     loader.has_images()
     image = loader.read()
     if image is None:
         raise ValueError("No image found")
-    prev_gray = formatter.apply_distortion_correction(image)
-    prev_gray = formatter.apply_roi_extraction(prev_gray)
-    prev_gray = formatter.apply_resolution(prev_gray)
+
+    # Preprocess first image
+    formatter = Formatter(config.dataset, config.preprocessing)
+    prev_gray, depths_positions = formatter.apply(
+        image, config.water_flow.profile.depths_array[:, :2]
+    )
+
+    # Filter out all positions with x or y <=0
+    depths_positions = np.array(
+        [pos for pos in depths_positions if pos[0] > 0 and pos[1] > 0]
+    )
+
     otv = OTV(
         config_=config,
         prev_gray=prev_gray,
         formatter=formatter,
-        lines=config.lines,
+        lines=depths_positions[:, 1].tolist(),
     )
     return otv.run(loader, show_video), prev_gray
 
@@ -533,16 +544,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "config",
-        help="Config path to the config folder",
+        help="Path to the config file",
         type=Path,
-    )
-    parser.add_argument(
-        "video_identifier",
-        help="Index of the video of the json config file",
-        type=str,
-    )
-    parser.add_argument(
-        "-d", "--debug", help="Activate debug mode", type=int, default=0
     )
     parser.add_argument(
         "-v",
@@ -560,7 +563,6 @@ if __name__ == "__main__":
     velocities, image = run_otv(
         config_path=args.config,
         show_video=args.video,
-        debug=args.debug,
     )
     if args.save_image and image is not None:
         print("Saving image")

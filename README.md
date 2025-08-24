@@ -33,3 +33,9 @@ pip install awive
 ```
 
 ## Usage
+
+OTV usage:
+
+```bash
+python awive/algorithms/otv.py data/config.yaml
+```

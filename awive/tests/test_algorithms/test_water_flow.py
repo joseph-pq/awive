@@ -1,6 +1,11 @@
+import numpy as np
 import pytest
 
-from awive.algorithms.water_flow import Velocity, get_simplest_water_flow
+from awive.algorithms.water_flow import (
+    Velocity,
+    get_simplest_water_flow,
+    get_water_flow,
+)
 
 
 class TestGetSimplestWaterFlow:
@@ -76,3 +81,39 @@ def test_velocity_type() -> None:
     assert velocity["velocity"] == 1.0
     assert velocity["count"] == 1
     assert velocity["position"] == 1
+
+
+def test_water_flow_w_profile() -> None:
+    """Test the get_water_flow function."""
+    depths = np.array(  # m
+        [
+            [0.28, 0.0],
+            [0.48, 0.5],
+            [0.58, 1.0],
+            [0.68, 1.5],
+            [0.88, 2.0],
+            [1.18, 2.5],
+            [1.48, 3.0],
+            [1.28, 3.5],
+            [1.18, 4.0],
+            [1.18, 4.5],
+            [1.18, 5.0],
+            [1.18, 5.5],
+            [1.08, 6.0],
+            [0.88, 6.5],
+            [0.78, 7.0],
+            [0.78, 7.5],
+            [0.58, 8.0],
+        ]
+    )
+    vels = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 8, 7, 6, 5, 4, 3, 2, 1])  # m/s
+    roughness = 8
+
+    wf = get_water_flow(
+        depths, vels, old_depth=2.0, roughness=roughness, current_depth=2.0
+    )
+    wf2 = get_water_flow(
+        depths, vels, old_depth=3.0, roughness=roughness, current_depth=3.0
+    )
+
+    assert wf == wf2
