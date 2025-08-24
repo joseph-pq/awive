@@ -348,7 +348,7 @@ class WaterFlow(BaseModel):
     area: float = Field(
         ..., description=("Area of the flow in square meters.")
     )
-    profile: Profile = Field(default=None, description="Profile of the river.")
+    profile: Profile = Field(default=..., description="Profile of the river.")
     roughness: float = Field(
         default=8, description="Manning's roughness coefficient."
     )
