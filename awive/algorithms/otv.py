@@ -497,9 +497,11 @@ def draw_vectors(
 def run_otv(
     config_path: Path,
     show_video: bool = False,
-    debug: int = 0,
 ) -> tuple[dict[str, dict[str, float]], np.ndarray | None]:
     """Basic example of OTV.
+
+    After the rotation, the water must flow from right to left.
+
 
     Processing for each frame
         1. Crop image using gcp.pixels parameter
@@ -511,20 +513,24 @@ def run_otv(
         7. Convert to gray scale
     """
     config = Config.from_fp(config_path)
+    # Load first image
     loader: Loader = make_loader(config.dataset)
-    formatter = Formatter(config.dataset, config.preprocessing)
     loader.has_images()
     image = loader.read()
     if image is None:
         raise ValueError("No image found")
-    prev_gray = formatter.apply_distortion_correction(image)
-    prev_gray = formatter.apply_roi_extraction(prev_gray)
-    prev_gray = formatter.apply_resolution(prev_gray)
+
+    # Preprocess first image
+    formatter = Formatter(config.dataset, config.preprocessing)
+    prev_gray = formatter.apply(image)
+    depths_positions = config.water_flow.profile.depths_array[:2, :]
+    depths_positions = formatter.apply_positions(depths_positions)
+
     otv = OTV(
         config_=config,
         prev_gray=prev_gray,
         formatter=formatter,
-        lines=config.lines,
+        lines=depths_positions[1, :].tolist(),
     )
     return otv.run(loader, show_video), prev_gray
 
@@ -535,9 +541,6 @@ if __name__ == "__main__":
         "config",
         help="Path to the config file",
         type=Path,
-    )
-    parser.add_argument(
-        "-d", "--debug", help="Enable debug mode", type=int, default=0
     )
     parser.add_argument(
         "-v",
@@ -555,7 +558,6 @@ if __name__ == "__main__":
     velocities, image = run_otv(
         config_path=args.config,
         show_video=args.video,
-        debug=args.debug,
     )
     if args.save_image and image is not None:
         print("Saving image")

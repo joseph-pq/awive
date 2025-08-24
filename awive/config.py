@@ -332,6 +332,15 @@ class Profile(BaseModel):
     height: float = Field(..., description="Height of the profile in meters.")
     depths: list[Depth] = Field(..., description="Depths of the profile.")
 
+    @functools.cached_property
+    def depths_array(self) -> NDArray:
+        """Return depths as a numpy array.
+
+        Array of shape (n, 3) where n is the number of depths,
+        and the columns are (horizontal position, vertical position, depth).
+        """
+        return np.array([[d.x, d.y, d.z] for d in self.depths])
+
 
 class WaterFlow(BaseModel):
     """Configuration Water Flow."""
@@ -339,9 +348,7 @@ class WaterFlow(BaseModel):
     area: float = Field(
         ..., description=("Area of the flow in square meters.")
     )
-    profile: Profile | None = Field(
-        default=None, description="Profile of the river."
-    )
+    profile: Profile = Field(default=None, description="Profile of the river.")
     roughness: float = Field(
         default=8, description="Manning's roughness coefficient."
     )

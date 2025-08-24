@@ -271,6 +271,20 @@ class Formatter:
         self._rotation_matrix = self._get_rotation_matrix()
         return image
 
+    def apply(self, image: NDArray) -> NDArray:
+        """Apply all preprocessing steps to the image.
+
+        Args:
+            image: The input image to process.
+
+        Returns:
+            The processed image.
+        """
+        image = self.apply_distortion_correction(image)
+        image = self.apply_roi_extraction(image)
+        image = self.apply_resolution(image)
+        return self.apply_image_enhancement(image)
+
 
 def main(config_fp: Path, save_image: bool = False) -> None:
     """Demonstrate basic example of video correction.
