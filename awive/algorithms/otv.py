@@ -522,9 +522,9 @@ def run_otv(
 
     # Preprocess first image
     formatter = Formatter(config.dataset, config.preprocessing)
-    prev_gray = formatter.apply(image)
-    depths_positions = config.water_flow.profile.depths_array[:2, :]
-    depths_positions = formatter.apply_positions(depths_positions)
+    prev_gray, depths_positions = formatter.apply(
+        image, config.water_flow.profile.depths_array[:2, :]
+    )
 
     otv = OTV(
         config_=config,

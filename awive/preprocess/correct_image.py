@@ -167,7 +167,7 @@ class Formatter:
         new_image = image[self._slice[0], self._slice[1]]
         self._shape = (new_image.shape[0], new_image.shape[1])
         # TODO: this shouldn't be done here. Find a better way
-        self._rotation_matrix = self._get_rotation_matrix()
+        # self._rotation_matrix = self._get_rotation_matrix()
         return new_image
 
     def apply_roi_extraction(
@@ -240,6 +240,11 @@ class Formatter:
     def apply_distortion_correction(self, image: np.ndarray) -> np.ndarray:
         """Undistort image using Ground Control Points (GCP).
 
+        Updates:
+        - self._shape
+        - self._or_params
+        - self._rotation_matrix
+
         Args:
             image: The input image to correct.
 
@@ -271,19 +276,53 @@ class Formatter:
         self._rotation_matrix = self._get_rotation_matrix()
         return image
 
-    def apply(self, image: NDArray) -> NDArray:
+    def apply(
+        self, image: NDArray, positions: NDArray
+    ) -> tuple[NDArray, NDArray]:
         """Apply all preprocessing steps to the image.
 
         Args:
             image: The input image to process.
+            positions: Positions to be transformed of shape (N, 2).
 
         Returns:
-            The processed image.
+            The processed image and transformed positions.
         """
         image = self.apply_distortion_correction(image)
+        # crop
+        x_min, y_min = np.min(self.dataset.gcp.pixels_coordinates, axis=0)
+        new_pos = positions - np.array([x_min, y_min])
+        # orthorectify
+        if self._or_params is not None:
+            m, _ = self._or_params
+            ones = np.ones((new_pos.shape[0], 1), dtype=np.float32)
+            hom = np.hstack([new_pos, ones])  # (N, 3)
+            transformed = hom @ m.T
+            new_pos = transformed[:, :2] / transformed[:, 2][:, None]
+        # precrop
+        y0, _ = self._pre_slice[0].start, self._pre_slice[0].stop
+        x0, _ = self._pre_slice[1].start, self._pre_slice[1].stop
+        new_pos -= np.array([x0, y0], dtype=np.float32)
         image = self.apply_roi_extraction(image)
+        # rotate
+        ones = np.ones((new_pos.shape[0], 1), dtype=np.float32)
+        hom = np.hstack([new_pos, ones])  # (N, 3)
+        new_pos = hom @ self._rotation_matrix.T  # (N, 2)
+        # crop
+        y0, _ = self._slice[0].start, self._slice[0].stop
+        x0, _ = self._slice[1].start, self._slice[1].stop
+        new_pos -= np.array([x0, y0], dtype=np.float32)
         image = self.apply_resolution(image)
-        return self.apply_image_enhancement(image)
+        if self.preprocessing.resolution < 1:
+            new_pos *= self.preprocessing.resolution
+
+        for i in range(new_pos.shape[0]):
+            if not (0 <= new_pos[i][0] < image.shape[1]) or not (
+                0 <= new_pos[i][1] < image.shape[0]
+            ):
+                new_pos[i] = -1
+
+        return self.apply_image_enhancement(image), new_pos
 
 
 def main(config_fp: Path, save_image: bool = False) -> None:
