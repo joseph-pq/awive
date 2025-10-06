@@ -75,6 +75,7 @@ class Formatter:
         self._pre_slice = tuple(
             slice(x[0], x[1]) for x in zip(*self.preprocessing.pre_roi)
         )
+        self._lens_params = None
 
     def _get_orthorectification_params(
         self, sample_image: NDArray, reduce: NDArray | None = None
@@ -83,17 +84,8 @@ class Formatter:
         meters_coordinates = self.dataset.gcp.meters_coordinates
         if reduce is not None:
             pixels_coordinates = pixels_coordinates - reduce
-        if self.preprocessing.image_correction.apply:
-            corr_img = ip.apply_lens_correction(
-                sample_image,
-                k1=self.preprocessing.image_correction.k1,
-                c=self.preprocessing.image_correction.c,
-                f=self.preprocessing.image_correction.f,
-            )
-        else:
-            corr_img = sample_image
         m, c = ip.build_orthorect_params(
-            corr_img,
+            sample_image,
             pixels_coordinates,
             meters_coordinates,
             ppm=self.preprocessing.ppm,
@@ -244,6 +236,7 @@ class Formatter:
         - self._shape
         - self._or_params
         - self._rotation_matrix
+        - self._lens_params
 
         Args:
             image: The input image to correct.
@@ -257,15 +250,34 @@ class Formatter:
             LOG.error("No orthorectification parameters found")
             return image
 
-        image = self._crop_using_refs(image)
         # apply lens distortion correction
         if self.preprocessing.image_correction.apply:
+            # check if we have calibration parameters directly
+            has_calibration = (
+                self.preprocessing.image_correction.camera_matrix is not None
+                and self.preprocessing.image_correction.dist_coeffs is not None
+            )
+            # compute undistortion maps once
+            if not self._lens_params and has_calibration:
+                self._lens_params = ip.compute_undistort_maps(
+                    image.shape,
+                    camera_matrix=self.preprocessing.image_correction.camera_matrix,
+                    dist_coeffs=self.preprocessing.image_correction.dist_coeffs,
+                )
+
             image = ip.apply_lens_correction(
                 image,
                 k1=self.preprocessing.image_correction.k1,
                 c=self.preprocessing.image_correction.c,
                 f=self.preprocessing.image_correction.f,
+                lens_params=self._lens_params,
             )
+
+            self._shape = (image.shape[0], image.shape[1])
+            # update rotation matrix such as the shape of the image changed
+            self._rotation_matrix = self._get_rotation_matrix()
+
+        image = self._crop_using_refs(image)
 
         # apply orthorectification
         image = ip.apply_orthorec(
