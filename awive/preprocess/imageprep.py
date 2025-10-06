@@ -30,11 +30,48 @@ def crop_to_gcp_area(
     return cropped_img, updated_coords
 
 
+def compute_undistort_maps(
+    img_shape: tuple[int, int],
+    camera_matrix: NDArray,
+    dist_coeffs: NDArray,
+) -> tuple[NDArray, NDArray]:
+    """Compute undistortion maps for remapping.
+
+    Args:
+        img_shape: Shape of the image (height, width).
+        camera_matrix: Camera matrix for lens correction.
+        dist_coeffs: Distortion coefficients for lens correction.
+
+    Returns:
+        map1 and map2 for cv2.remap function.
+    """
+    height, width = img_shape[:2]
+    new_camera_matrix, roi = cv2.getOptimalNewCameraMatrix(
+        camera_matrix,
+        dist_coeffs,
+        (width, height),
+        1,
+        (width, height),
+    )
+
+    map1, map2 = cv2.initUndistortRectifyMap(
+        camera_matrix,
+        dist_coeffs,
+        None,
+        new_camera_matrix,
+        (width, height),
+        cv2.CV_16SC2,
+    )
+    return map1, map2, roi
+
+
 def apply_lens_correction(
     img: np.ndarray,
     k1: float = -10.0e-6,
     c: float = 2,
     f: float = 8.0,
+    lens_params: tuple[NDArray, NDArray, tuple[int, int, int, int]]
+    | None = None,
 ) -> np.ndarray:
     """Lens distortion correction based on lens characteristics.
 
@@ -43,24 +80,36 @@ def apply_lens_correction(
         k1: Barrel lens distortion parameter.
         c: Optical center.
         f: Focal length.
+        lens_params: Precomputed undistortion maps and ROI.
 
     Returns:
         Image corrected for lens distortion.
     """
-    # define distortion coefficient vector
-    dist = np.zeros((4, 1), np.float64)
-    dist[0, 0] = k1
+    # Legacy support for k1, c, f parameters
+    if lens_params is None:
+        # define distortion coefficient vector
+        dist = np.zeros((4, 1), np.float64)
+        dist[0, 0] = k1
 
-    # define camera matrix
-    mtx = np.eye(3, dtype=np.float32)
+        # define camera matrix
+        mtx = np.eye(3, dtype=np.float32)
 
-    mtx[0, 2] = img.shape[0] / c  # define center x
-    mtx[1, 2] = img.shape[1] / c  # define center y
-    mtx[0, 0] = f  # define focal length x
-    mtx[1, 1] = f  # define focal length y
+        mtx[0, 2] = img.shape[0] / c  # define center x
+        mtx[1, 2] = img.shape[1] / c  # define center y
+        mtx[0, 0] = f  # define focal length x
+        mtx[1, 1] = f  # define focal length y
 
-    # correct image for lens distortion
-    return cv2.undistort(img, mtx, dist)
+        # correct image for lens distortion
+        return cv2.undistort(img, mtx, dist)
+
+    # Use precomputed undistortion maps to correct lens distortion
+    map1, map2, roi = lens_params
+    undistorted = cv2.remap(img, map1, map2, cv2.INTER_LINEAR)
+    x, y, w, h = roi
+    undistorted = undistorted[y : y + h, x : x + w]
+
+    imshow(undistorted, "Lens corrected image", handle_destroy=False)
+    return undistorted
 
 
 # def xy_coord(df: list[list[int]]) -> int:
