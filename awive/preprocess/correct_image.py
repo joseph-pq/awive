@@ -83,6 +83,8 @@ class Formatter:
         meters_coordinates = self.dataset.gcp.meters_coordinates
         if reduce is not None:
             pixels_coordinates = pixels_coordinates - reduce
+
+        # Why using lens correction again?
         if self.preprocessing.image_correction.apply:
             corr_img = ip.apply_lens_correction(
                 sample_image,
@@ -257,6 +259,8 @@ class Formatter:
             LOG.error("No orthorectification parameters found")
             return image
 
+        # I think lens correction should be first then cropping
+
         image = self._crop_using_refs(image)
         # apply lens distortion correction
         if self.preprocessing.image_correction.apply:
@@ -288,9 +292,20 @@ class Formatter:
         Returns:
             The processed image and transformed positions.
         """
+        # When using lens correction, GCP are distorted. Transformation should be
+        # applied to them too? Or let awive-configuration handle this by giving
+        # different GCP when using the lens option on it.
+
         image = self.apply_distortion_correction(image)
+
+        # Why is the image and points being processed separately?
+
+        # Wouldn't it be easier to debug by making a transformation to the image
+        # and points and visualize how the transformation affects both?
+
         # crop
         x_min, y_min = np.min(self.dataset.gcp.pixels_coordinates, axis=0)
+        # What's the differenece between positions and GCP points?
         new_pos = positions - np.array([x_min, y_min])
         # orthorectify
         if self._or_params is not None:
@@ -299,15 +314,22 @@ class Formatter:
             hom = np.hstack([new_pos, ones])  # (N, 3)
             transformed = hom @ m.T
             new_pos = transformed[:, :2] / transformed[:, 2][:, None]
+
+        # Pre crop doesn't go before orthrectification?
+
         # precrop
         y0, _ = self._pre_slice[0].start, self._pre_slice[0].stop
         x0, _ = self._pre_slice[1].start, self._pre_slice[1].stop
         new_pos -= np.array([x0, y0], dtype=np.float32)
         image = self.apply_roi_extraction(image)
+
+        # Rotate doesnt'go after crop?
+
         # rotate
         ones = np.ones((new_pos.shape[0], 1), dtype=np.float32)
         hom = np.hstack([new_pos, ones])  # (N, 3)
         new_pos = hom @ self._rotation_matrix.T  # (N, 2)
+
         # crop
         y0, _ = self._slice[0].start, self._slice[0].stop
         x0, _ = self._slice[1].start, self._slice[1].stop
