@@ -15,7 +15,7 @@ class TestGetSimplestWaterFlow:
         """Test that an empty list of velocities raises a ValueError."""
         with pytest.raises(
             ValueError,
-            match="Velocities list cannot be empty.",
+            match=r"Velocities list cannot be empty.",
         ):
             get_simplest_water_flow(area=10.0, velocities=[])
 

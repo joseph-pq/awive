@@ -25,7 +25,7 @@ def execute_method(
     if method_name == "sti":
         ret = sti.main(config_path)
     elif method_name == "otv":
-        ret, image = otv.run_otv(config_path)
+        ret, _ = otv.run_otv(config_path)
     else:
         ret = None
     elapsed_time = time.process_time() - t
