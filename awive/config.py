@@ -122,8 +122,8 @@ class ConfigGcp(BaseModel):
         for key, value in input_dict.items():
             if (
                 isinstance(key, str)
-                # and key.startswith("(")
-                # and key.endswith(")")
+                and key.startswith("(")
+                and key.endswith(")")
             ):
                 try:
                     # Safely evaluate the string as a tuple
