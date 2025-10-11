@@ -122,8 +122,8 @@ class ConfigGcp(BaseModel):
         for key, value in input_dict.items():
             if (
                 isinstance(key, str)
-                and key.startswith("(")
-                and key.endswith(")")
+                # and key.startswith("(")
+                # and key.endswith(")")
             ):
                 try:
                     # Safely evaluate the string as a tuple
@@ -131,7 +131,9 @@ class ConfigGcp(BaseModel):
                     if isinstance(tuple_key, tuple):
                         result[tuple_key] = value
                     else:
-                        raise ValueError(f"Key '{key}' is not a tuple")
+                        raise ValueError(
+                            f"Key '{key}' is not a tuple: {tuple_key}"
+                        )
                 except (ValueError, SyntaxError) as e:
                     raise ValueError(
                         f"Invalid tuple format in key '{key}'"
