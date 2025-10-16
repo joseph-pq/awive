@@ -106,10 +106,8 @@ def apply_lens_correction(
     map1, map2, roi = lens_params
     undistorted = cv2.remap(img, map1, map2, cv2.INTER_LINEAR)
     x, y, w, h = roi
-    undistorted = undistorted[y : y + h, x : x + w]
 
-    imshow(undistorted, "Lens corrected image", handle_destroy=False)
-    return undistorted
+    return undistorted[y : y + h, x : x + w]
 
 
 # def xy_coord(df: list[list[int]]) -> int:
