@@ -120,11 +120,7 @@ class ConfigGcp(BaseModel):
         """
         result = {}
         for key, value in input_dict.items():
-            if (
-                isinstance(key, str)
-                and key.startswith("(")
-                and key.endswith(")")
-            ):
+            if isinstance(key, str):
                 try:
                     # Safely evaluate the string as a tuple
                     tuple_key = literal_eval(key)
