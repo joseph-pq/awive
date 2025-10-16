@@ -2,7 +2,7 @@
 
 import functools
 import json
-from ast import literal_eval
+import re
 from pathlib import Path
 from typing import Any, Literal
 
@@ -106,35 +106,32 @@ class ConfigGcp(BaseModel):
         x[:, 0] *= -1
         return x.tolist()
 
-    def convert_str_keys_to_tuples(
+    def parse_tuple_keys(
         self, input_dict: dict[str, float]
     ) -> dict[tuple[int, int], float]:
-        """Convert string-represented tuple keys to actual tuples.
+        """Parse string keys representing tuples into actual tuples.
 
         Args:
-            input_dict: Dictionary with string keys representing tuples to
-                convert.
+            input_dict: Dictionary with string keys representing tuples to parse.
 
         Returns:
             Dictionary with keys converted to integer tuples.
         """
         result = {}
+        regex = re.compile(
+            r"^\s*(?:\(\s*(\d+)\s*,\s*(\d+)\s*\)|(\d+)\s*,\s*(\d+))\s*$"
+        )
+
         for key, value in input_dict.items():
-            if isinstance(key, str):
-                try:
-                    # Safely evaluate the string as a tuple
-                    tuple_key = literal_eval(key)
-                    if isinstance(tuple_key, tuple):
-                        result[tuple_key] = value
-                    else:
-                        raise ValueError(f"Key '{key}' is not a tuple")
-                except (ValueError, SyntaxError) as e:
-                    raise ValueError(
-                        f"Invalid tuple format in key '{key}'"
-                    ) from e
-            else:
-                # Keep the key as is if it's not a string-represented tuple
-                raise ValueError(f"Key '{key}' is not a tuple")
+            match = regex.match(key)
+            if not match:
+                raise ValueError(f"Key '{key}' is not a valid tuple")
+
+            # Extract the integers from the regex match
+            x = int(match.group(1) or match.group(3))
+            y = int(match.group(2) or match.group(4))
+            result[(x, y)] = value
+
         return result
 
     def model_post_init(self, __context: Any) -> None:
@@ -146,18 +143,16 @@ class ConfigGcp(BaseModel):
         if len(self.meters) == 0 and self.distances is None:
             raise ValueError("meters or distances must be provided")
         if self.distances is not None:
-            converted_distances = self.convert_str_keys_to_tuples(
-                self.distances
-            )
+            distances = self.parse_tuple_keys(self.distances)
             if len(self.meters) == 0:
                 if len(self.distances) == int(
                     len(self.pixels) * (len(self.pixels) - 1) / 2
                 ):
-                    self.meters = self.calculate_meters(converted_distances)
+                    self.meters = self.calculate_meters(distances)
                 else:
                     raise ValueError(
                         "distances must have the correct number of elements. "
-                        f"number of distance ellemtns {len(self.distances)}."
+                        f"number of distance elements {len(distances)}."
                         "Expected "
                         f"{len(self.pixels) * (len(self.pixels) - 1) / 2}"
                     )
