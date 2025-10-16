@@ -112,7 +112,7 @@ class ConfigGcp(BaseModel):
         """Parse string keys representing tuples into actual tuples.
 
         Args:
-            input_dict: Dictionary with string keys representing tuples to parse.
+            input_dict: Dictionary with string keys representing tuples.
 
         Returns:
             Dictionary with keys converted to integer tuples.
