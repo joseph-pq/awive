@@ -164,10 +164,34 @@ class ConfigGcp(BaseModel):
 class ImageCorrection(BaseModel):
     """Configuration Image Correction."""
 
-    apply: bool
-    k1: float
-    c: int
-    f: float
+    apply: bool = Field(default=False, description="Apply image correction")
+    k1: float | None = Field(
+        default=None, description="Barrel lens distortion parameter"
+    )
+    c: int | None = Field(default=None, description="Center of the image")
+    f: float | None = Field(default=None, description="Focal length")
+
+    camera_matrix: list[list[float]] | None = Field(
+        default=None, description="Camera matrix for lens correction"
+    )
+    dist_coeffs: list[list[float]] | None = Field(
+        default=None, description="Distortion coefficients for lens correction"
+    )
+
+    def model_post_init(self, __context: Any) -> None:
+        """Post-initialization validation."""
+        if not self.apply:
+            return
+
+        if self.camera_matrix is None or self.dist_coeffs is None:
+            if self.k1 is None or self.c is None or self.f is None:
+                raise ValueError(
+                    "Either camera_matrix and dist_coeffs or k1, c, f "
+                    "must be provided"
+                )
+        else:
+            self.camera_matrix = np.array(self.camera_matrix)
+            self.dist_coeffs = np.array(self.dist_coeffs)
 
 
 class PreProcessing(BaseModel):

@@ -17,6 +17,7 @@ dev = [
     "ipython>=8.18.1",
     "pyfzf>=0.3.1",
     "requests>=2.31.0",
+    "ruff>=0.14.1",
     {include-group = "test"},
     {include-group = "plots"},
     {include-group = "stubs"},
