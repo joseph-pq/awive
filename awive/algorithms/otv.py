@@ -522,9 +522,9 @@ def run_otv(
 
     # Preprocess first image
     formatter = Formatter(config.dataset, config.preprocessing)
-    prev_gray, depths_positions = formatter.apply(
-        image, config.water_flow.profile.depths_array[:, :2]
-    )
+    prev_gray = formatter.apply(image)
+
+    depths_positions = config.water_flow.profile.depths_array[:, :2]
 
     # Filter out all positions with x or y <=0
     depths_positions = np.array(
