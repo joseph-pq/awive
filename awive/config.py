@@ -183,15 +183,23 @@ class ImageCorrection(BaseModel):
         if not self.apply:
             return
 
-        if self.camera_matrix is None or self.dist_coeffs is None:
-            if self.k1 is None or self.c is None or self.f is None:
-                raise ValueError(
-                    "Either camera_matrix and dist_coeffs or k1, c, f "
-                    "must be provided"
-                )
-        else:
-            self.camera_matrix = np.array(self.camera_matrix)
-            self.dist_coeffs = np.array(self.dist_coeffs)
+        if (self.camera_matrix is None or self.dist_coeffs is None) and (
+            self.k1 is None or self.c is None or self.f is None
+        ):
+            raise ValueError(
+                "Either camera_matrix and dist_coeffs or k1, c, f "
+                "must be provided"
+            )
+
+    @functools.cached_property
+    def lens_camera_matrix(self) -> NDArray:
+        """Return camera matrix for lens correction."""
+        return np.array(self.camera_matrix)
+
+    @functools.cached_property
+    def lens_dist_coeffs(self) -> NDArray:
+        """Return distortion coefficients."""
+        return np.array(self.dist_coeffs)
 
 
 class PreProcessing(BaseModel):

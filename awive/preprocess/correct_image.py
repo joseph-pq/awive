@@ -254,14 +254,15 @@ class Formatter:
         if self.preprocessing.image_correction.apply:
             # check if we have calibration parameters directly
             has_calibration = (
-                self.preprocessing.image_correction.camera_matrix is not None
+                self.preprocessing.image_correction.lens_camera_matrix
+                is not None
                 and self.preprocessing.image_correction.dist_coeffs is not None
             )
             # compute undistortion maps once
             if not self._lens_params and has_calibration:
                 self._lens_params = ip.compute_undistort_maps(
                     image.shape,
-                    camera_matrix=self.preprocessing.image_correction.camera_matrix,
+                    camera_matrix=self.preprocessing.image_correction.lens_camera_matrix,
                     dist_coeffs=self.preprocessing.image_correction.dist_coeffs,
                 )
 
