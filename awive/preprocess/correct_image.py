@@ -261,8 +261,8 @@ class Formatter:
             if not self._lens_params and has_calibration:
                 self._lens_params = ip.compute_undistort_maps(
                     image.shape,
-                    camera_matrix=self.preprocessing.image_correction.camera_matrix,
-                    dist_coeffs=self.preprocessing.image_correction.dist_coeffs,
+                    camera_matrix=self.preprocessing.image_correction.lens_camera_matrix,
+                    dist_coeffs=self.preprocessing.image_correction.lens_dist_coeffs,
                 )
 
             image = ip.apply_lens_correction(
