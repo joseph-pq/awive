@@ -309,6 +309,7 @@ class Formatter:
         """
         image = self.apply_lens_correction(image)
         image = self.apply_distortion_correction(image)
+        image = self.apply_roi_extraction(image)
         image = self.apply_resolution(image)
 
         return self.apply_image_enhancement(image)
