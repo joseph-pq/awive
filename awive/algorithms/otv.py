@@ -288,6 +288,7 @@ class OTV:
             if curr_frame is None:
                 # TODO: This is not the best way to handle this
                 break
+            curr_frame = self.formatter.apply_lens_correction(curr_frame)
             curr_frame = self.formatter.apply_distortion_correction(curr_frame)
             curr_frame = self.formatter.apply_roi_extraction(curr_frame)
             curr_frame = self.formatter.apply_resolution(curr_frame)
