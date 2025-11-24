@@ -309,7 +309,7 @@ class Formatter:
         self._rotation_matrix = self._get_rotation_matrix()
         return image
 
-    def apply(self, image: NDArray, debug: bool) -> NDArray:
+    def apply(self, image: NDArray, debug: bool = False) -> NDArray:
         """Apply all preprocessing steps to the image.
 
         Steps:
