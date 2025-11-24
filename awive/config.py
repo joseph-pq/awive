@@ -364,6 +364,14 @@ class Profile(BaseModel):
         """
         return np.array([[d.x, d.y, d.z] for d in self.depths])
 
+    def depths_meters(self, ppm: float) -> NDArray:
+        """Returns (y,z) coordinates in meters.
+
+        Array of shape (n, 2) where n is the number of depths,
+        and the columns are (vertical position, depth) in meters.
+        """
+        return np.array([[d.y * 1 / ppm, d.z] for d in self.depths])
+
 
 class WaterFlow(BaseModel):
     """Configuration Water Flow."""
