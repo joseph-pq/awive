@@ -288,6 +288,8 @@ class OTV:
             if curr_frame is None:
                 # TODO: This is not the best way to handle this
                 break
+
+            # pre-process current frame
             curr_frame = self.formatter.apply(curr_frame)
             curr_frame = self._apply_mask(curr_frame)
 
