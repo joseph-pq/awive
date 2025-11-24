@@ -497,6 +497,7 @@ def draw_vectors(
 def run_otv(
     config_path: Path,
     show_video: bool = False,
+    debug: bool = False,
 ) -> tuple[dict[str, dict[str, float]], np.ndarray | None]:
     """Basic example of OTV.
 
@@ -522,7 +523,7 @@ def run_otv(
 
     # Preprocess first image
     formatter = Formatter(config.dataset, config.preprocessing)
-    prev_gray = formatter.apply(image)
+    prev_gray = formatter.apply(image, debug=debug)
 
     depths_positions = config.water_flow.profile.depths_array[:, :2]
 
@@ -559,10 +560,16 @@ if __name__ == "__main__":
         action="store_true",
         help="Save image instead of showing",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Save debug images during preprocessing",
+    )
     args = parser.parse_args()
     velocities, image = run_otv(
         config_path=args.config,
         show_video=args.video,
+        debug=args.debug,
     )
     if args.save_image and image is not None:
         print("Saving image")
