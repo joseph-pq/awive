@@ -281,7 +281,7 @@ class Formatter:
 
         return image
 
-    def apply_distortion_correction(self, image: np.ndarray) -> np.ndarray:
+    def apply_orthorectification(self, image: np.ndarray) -> np.ndarray:
         """Undistort image using Ground Control Points (GCP).
 
         Updates:
@@ -328,7 +328,7 @@ class Formatter:
         """
         image = self.apply_lens_correction(image)
         image = self.apply_crop_using_refs(image)
-        image = self.apply_distortion_correction(image)
+        image = self.apply_orthorectification(image)
         image = self.apply_roi_extraction(image)
         image = self.apply_resolution(image)
 
