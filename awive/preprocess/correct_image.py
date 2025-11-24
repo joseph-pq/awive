@@ -312,13 +312,22 @@ class Formatter:
     def apply(self, image: NDArray) -> NDArray:
         """Apply all preprocessing steps to the image.
 
+        Steps:
+            1. Correct image distortion due to lens camera
+            2. Crop using Ground Control Points (GCP)
+            3. Apply orthorectification using GCP
+            4. Crop and rotate image to region of interest
+            5. Scale image to desired resolution
+            6. Apply image enhancement effects
+
         Args:
             image: The input image to process.
 
         Returns:
-            The processed image and transformed positions.
+            The processed image.
         """
         image = self.apply_lens_correction(image)
+        image = self.apply_crop_using_refs(image)
         image = self.apply_distortion_correction(image)
         image = self.apply_roi_extraction(image)
         image = self.apply_resolution(image)
