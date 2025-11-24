@@ -170,7 +170,6 @@ class Formatter:
         Args:
             image: The input image to process.
             gray: Whether to convert the image to grayscale.
-            resize_factor: Factor by which to resize the image.
 
         Returns:
             The processed image.
@@ -310,12 +309,11 @@ class Formatter:
         self._rotation_matrix = self._get_rotation_matrix()
         return image
 
-    def apply(self, image: NDArray) -> tuple[NDArray, NDArray]:
+    def apply(self, image: NDArray) -> NDArray:
         """Apply all preprocessing steps to the image.
 
         Args:
             image: The input image to process.
-            positions: Positions to be transformed of shape (N, 2).
 
         Returns:
             The processed image and transformed positions.
