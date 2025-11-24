@@ -199,7 +199,21 @@ class Formatter:
         #     gamma=self.enhance_gamma)
         return image
 
-    def _crop_using_refs(self, image: np.ndarray) -> np.ndarray:
+    def apply_crop_using_refs(
+        self, image: np.ndarray, apply: bool = False
+    ) -> np.ndarray:
+        """Apply image cropping based on GCP's locations.
+
+        Args:
+            image: The input image to process.
+            apply: Whether to apply the crop or not
+
+        Returns:
+            The processed image.
+        """
+        if not apply:
+            return image
+        # apply a crop on the image taking the GCP's as references
         image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         x_min, y_min = np.min(self.dataset.gcp.pixels_coordinates, axis=0)
         x_max, y_max = np.max(self.dataset.gcp.pixels_coordinates, axis=0)
@@ -287,7 +301,6 @@ class Formatter:
         if self._or_params is None:
             LOG.error("No orthorectification parameters found")
             return image
-        # image = self._crop_using_refs(image)
         # apply orthorectification
         image = ip.apply_orthorec(
             image, self._or_params[0], self._or_params[1]
