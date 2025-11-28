@@ -85,7 +85,7 @@ def get_water_flow(
         "Depth and velocities must have the same length."
     )
     # Calculate width as mean distance between depth points
-    width = float(np.mean(np.diff(depths[:, 1])))  # m
+    width = np.abs(float(np.mean(np.diff(depths[:, 1]))))  # m
     # Update depths based on current and old depth
     new_depths = depths[:, 0] + (current_depth - old_depth)
     new_depths = np.where(new_depths < 0, 0, new_depths)
