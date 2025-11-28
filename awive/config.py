@@ -365,12 +365,12 @@ class Profile(BaseModel):
         return np.array([[d.x, d.y, d.z] for d in self.depths])
 
     def depths_meters(self, ppm: float) -> NDArray:
-        """Returns (y,z) coordinates in meters.
+        """Returns (z,y) coordinates in meters.
 
         Array of shape (n, 2) where n is the number of depths,
-        and the columns are (vertical position, depth) in meters.
+        and the columns are (depths, vertical position) in meters.
         """
-        return np.array([[d.y * 1 / ppm, d.z] for d in self.depths])
+        return np.array([[d.z, d.y * 1 / ppm] for d in self.depths])
 
 
 class WaterFlow(BaseModel):
