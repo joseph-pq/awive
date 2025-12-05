@@ -2,6 +2,7 @@ from typing import TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
+from scipy.interpolate import CubicSpline
 
 
 class Velocity(TypedDict):
@@ -90,3 +91,234 @@ def get_water_flow(
     new_depths = depths[:, 0] + (current_depth - old_depth)
     new_depths = np.where(new_depths < 0, 0, new_depths)
     return integrate_vels_over_depth(new_depths, vels, width, roughness)
+
+
+def get_water_flow_experimental(
+    depths: NDArray,
+    vels: NDArray,
+    old_depth: float,
+    roughness: float,
+    current_depth: float,
+) -> float:
+    """Compute the water flow based on profile and velocities.
+
+    Args:
+        depths: Array of depths (N,2) (meters, meters). First column is depth,
+            second is distance between depths.
+        vels: Array of velocities (N,) (m/s).
+        old_depth: Depth when depths were measured (meters).
+        roughness: Roughness coefficient (Manning's n).
+        current_depth: Current depth (meters).
+
+    Returns:
+        float: Water flow (m^3/s).
+    """
+    assert depths.shape[0] == vels.shape[0], (
+        "Depth and velocities must have the same length."
+    )
+    # Coordinates along the river width
+    x = depths[:, 1]
+    # Update depths based on current and old depth
+    new_depths = depths[:, 0] + (current_depth - old_depth)
+    new_depths = np.where(new_depths < 0, 0, new_depths)
+
+    # Interpolate riverbed profile
+    riverbed_spline = CubicSpline(x, new_depths, bc_type="natural")
+
+    # Create fine x grid
+    x_fine = np.linspace(x.min(), x.max(), 10000)
+    new_depths_fine = riverbed_spline(x_fine)  # depth along width
+
+    # Interpolate velocities
+    velocity_spline = CubicSpline(x, vels, bc_type="natural")
+    vels_fine = velocity_spline(x_fine)  # velocity along width
+
+    # Compute water flow per width unit (using Manning's equation)
+    # v(z) = v * (z/d)^(1/n)
+    # q = integrate v(z) dz from 0 to d
+
+    q_fine = vels_fine * new_depths_fine * (roughness) / (roughness + 1)
+
+    # Compute water flow by integrating q over the width
+    water_flow = np.trapz(q_fine, x_fine)
+
+    return water_flow
+
+
+def get_water_flow_trapz(
+    depths: NDArray,
+    vels: NDArray,
+    old_depth: float,
+    roughness: float,
+    current_depth: float,
+) -> float:
+    """Compute the water flow based on profile and velocities.
+
+    Args:
+        depths: Array of depths (N,2) (meters, meters). First column is depth,
+            second is distance between depths.
+        vels: Array of velocities (N,) (m/s).
+        old_depth: Depth when depths were measured (meters).
+        roughness: Roughness coefficient (Manning's n).
+        current_depth: Current depth (meters).
+
+    Returns:
+        float: Water flow (m^3/s).
+    """
+    assert depths.shape[0] == vels.shape[0], (
+        "Depth and velocities must have the same length."
+    )
+    # Update depths based on current and old depth
+    new_depths = depths[:, 0] + (current_depth - old_depth)
+    new_depths = np.where(new_depths < 0, 0, new_depths)
+
+    # river width
+    river_x = depths[:, 1]
+
+    # Water flow per width unit
+    q = np.zeros(new_depths.shape[0])
+    i = 0
+
+    for d, v in zip(new_depths, vels):
+        x = np.linspace(0, d, 100000)
+        if d == 0:
+            q[i] = 0.0
+        else:
+            y = v * ((x / d) ** (1 / roughness))
+            q[i] = np.trapz(y, x)
+        i = i + 1
+
+    water_flow = np.trapz(q, river_x)
+    return water_flow
+
+
+def get_water_flow_experimental_v2(
+    depths: NDArray,
+    vels: NDArray,
+    old_depth: float,
+    roughness: float,
+    current_depth: float,
+) -> float:
+    """Compute the water flow based on profile and velocities.
+
+    Args:
+        depths: Array of depths (N,2) (meters, meters). First column is depth,
+            second is distance between depths.
+        vels: Array of velocities (N,) (m/s).
+        old_depth: Depth when depths were measured (meters).
+        roughness: Roughness coefficient (Manning's n).
+        current_depth: Current depth (meters).
+
+    Returns:
+        float: Water flow (m^3/s).
+    """
+    assert depths.shape[0] == vels.shape[0], (
+        "Depth and velocities must have the same length."
+    )
+    # Coordinates along the river width
+    x = depths[:, 1]
+    # Update depths based on current and old depth
+    new_depths = depths[:, 0] + (current_depth - old_depth)
+    new_depths = np.where(new_depths < 0, 0, new_depths)
+
+    # Create fine x grid
+    x_fine = np.linspace(x.min(), x.max(), 10000)
+
+    # Interpolate riverbed profile
+    new_depths_fine = np.interp(x_fine, x, new_depths)  # depths along width
+
+    # Interpolate velocities
+    vels_fine = np.interp(x_fine, x, vels)  # velocity along width
+
+    # Compute water flow per width unit (using Manning's equation)
+    # v(z) = v * (z/d)^(1/n)
+    # q = integrate v(z) dz from 0 to d
+
+    q_fine = vels_fine * new_depths_fine * (roughness) / (roughness + 1)
+
+    # Compute water flow by integrating q over the width
+    water_flow = np.trapz(q_fine, x_fine)
+
+    return water_flow
+
+
+def get_water_flow_linear_corrected(
+    depths: NDArray,
+    vels: NDArray,
+    old_depth: float,
+    roughness: float,
+    current_depth: float,
+    correction_a: float = 0.8306,  # Parámetro de escala optimizado
+    correction_b: float = -1.4046,  # Parámetro de offset optimizado
+) -> float:
+    """Compute water flow with linear correction optimized for SENAMHI data.
+
+    Uses the linear interpolation method with post-processing correction:
+    corrected_flow = a * original_flow + b
+
+    Default parameters were fitted to minimize error against SENAMHI data.
+
+    Args:
+        depths: Array of depths (N,2) (meters, meters). First column is depth,
+            second is distance between depths.
+        vels: Array of velocities (N,) (m/s).
+        old_depth: Depth when depths were measured (meters).
+        roughness: Roughness coefficient (Manning's n).
+        current_depth: Current depth (meters).
+        correction_a: Linear correction scale factor.
+        correction_b: Linear correction offset.
+
+    Returns:
+        float: Corrected water flow (m^3/s).
+    """
+    # Get base calculation using the best performing method
+    base_flow = get_water_flow_experimental_v2(
+        depths, vels, old_depth, roughness, current_depth
+    )
+
+    # Apply linear correction
+    corrected_flow = correction_a * base_flow + correction_b
+
+    # Ensure non-negative flow
+    return max(0.0, corrected_flow)
+
+
+def get_water_flow_depth_corrected(
+    depths: NDArray,
+    vels: NDArray,
+    old_depth: float,
+    roughness: float,
+    current_depth: float,
+    depth_coeff_a: float = 0.7856,  # Coeficiente base
+    depth_coeff_b: float = 0.1357,  # Coeficiente dependiente de profundidad
+    offset: float = -1.1824,  # Offset constante
+) -> float:
+    """Compute water flow with depth-dependent correction.
+
+    Applies correction: corrected_flow = (a + b * depth) * original_flow + offset
+    This accounts for the correlation between error and water depth.
+
+    Args:
+        depths: Array of depths (N,2) (meters, meters). First column is depth,
+            second is distance between depths.
+        vels: Array of velocities (N,) (m/s).
+        old_depth: Depth when depths were measured (meters).
+        roughness: Roughness coefficient (Manning's n).
+        current_depth: Current depth (meters).
+        depth_coeff_a: Base correction coefficient.
+        depth_coeff_b: Depth-dependent correction coefficient.
+        offset: Constant offset.
+
+    Returns:
+        float: Corrected water flow (m^3/s).
+    """
+    # Get base calculation
+    base_flow = get_water_flow_experimental_v2(
+        depths, vels, old_depth, roughness, current_depth
+    )
+
+    # Apply depth-dependent correction
+    correction_factor = depth_coeff_a + depth_coeff_b * current_depth
+    corrected_flow = correction_factor * base_flow + offset
+
+    return max(0.0, corrected_flow)
