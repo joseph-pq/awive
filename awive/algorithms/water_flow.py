@@ -248,8 +248,8 @@ def get_water_flow_linear_corrected(
     old_depth: float,
     roughness: float,
     current_depth: float,
-    correction_a: float = 0.8306,  # Parámetro de escala optimizado
-    correction_b: float = -1.4046,  # Parámetro de offset optimizado
+    correction_a: float = 0.8252,  # Parámetro de escala optimizado
+    correction_b: float = 0.8916,  # Parámetro de offset optimizado
 ) -> float:
     """Compute water flow with linear correction optimized for SENAMHI data.
 
@@ -289,9 +289,9 @@ def get_water_flow_depth_corrected(
     old_depth: float,
     roughness: float,
     current_depth: float,
-    depth_coeff_a: float = 0.7856,  # Coeficiente base
-    depth_coeff_b: float = 0.1357,  # Coeficiente dependiente de profundidad
-    offset: float = -1.1824,  # Offset constante
+    depth_coeff_a: float = 0.6788,  # Coeficiente base optimizado
+    depth_coeff_b: float = 0.1341,  # Coeficiente dependiente de profundidad
+    offset: float = 4.9530,  # Offset constante optimizado
 ) -> float:
     """Compute water flow with depth-dependent correction.
 
@@ -322,3 +322,159 @@ def get_water_flow_depth_corrected(
     corrected_flow = correction_factor * base_flow + offset
 
     return max(0.0, corrected_flow)
+
+
+def get_water_flow_exponential_corrected(
+    depths: NDArray,
+    vels: NDArray,
+    old_depth: float,
+    roughness: float,
+    current_depth: float,
+    exp_coeff: float = 40.45064695055738,  # Coeficiente exponencial optimizado
+    linear_coeff: float = 0.04104328781700687,  # Coeficiente lineal optimizado
+    offset: float = -23.168956556695633,  # Offset optimizado
+) -> float:
+    """Compute water flow with exponential correction.
+
+    Applies correction: corrected = exp_coeff * exp(depth) + linear_coeff * flow + offset
+    This non-linear approach can capture complex depth-flow relationships.
+
+    Args:
+        depths: Array of depths (N,2) (meters, meters).
+        vels: Array of velocities (N,) (m/s).
+        old_depth: Depth when depths were measured (meters).
+        roughness: Roughness coefficient (Manning's n).
+        current_depth: Current depth (meters).
+        exp_coeff: Exponential correction coefficient.
+        linear_coeff: Linear correction coefficient.
+        offset: Constant offset.
+
+    Returns:
+        float: Corrected water flow (m^3/s).
+    """
+    # Get base calculation
+    base_flow = get_water_flow_experimental_v2(
+        depths, vels, old_depth, roughness, current_depth
+    )
+
+    # Apply exponential correction
+    corrected_flow = (
+        exp_coeff * np.exp(current_depth) + linear_coeff * base_flow + offset
+    )
+
+    return max(0.0, corrected_flow)
+
+
+def get_water_flow_polynomial_corrected(
+    depths: NDArray,
+    vels: NDArray,
+    old_depth: float,
+    roughness: float,
+    current_depth: float,
+    poly_coeffs: tuple = (
+        0.8125,
+        0.0438,
+        -0.0289,
+    ),  # (a, b, c) para ax² + bx + c
+    flow_coeff: float = 0.9875,  # Coeficiente multiplicador del flujo base
+) -> float:
+    """Compute water flow with polynomial depth correction.
+
+    Applies correction: corrected = flow_coeff * base_flow *
+                       (poly_coeffs[0] + poly_coeffs[1]*depth + poly_coeffs[2]*depth²)
+
+    Args:
+        depths: Array of depths (N,2) (meters, meters).
+        vels: Array of velocities (N,) (m/s).
+        old_depth: Depth when depths were measured (meters).
+        roughness: Roughness coefficient (Manning's n).
+        current_depth: Current depth (meters).
+        poly_coeffs: Polynomial coefficients (a, b, c) for depth correction.
+        flow_coeff: Base flow multiplier.
+
+    Returns:
+        float: Corrected water flow (m^3/s).
+    """
+    # Get base calculation
+    base_flow = get_water_flow_experimental_v2(
+        depths, vels, old_depth, roughness, current_depth
+    )
+
+    # Apply polynomial correction
+    depth_factor = (
+        poly_coeffs[0]
+        + poly_coeffs[1] * current_depth
+        + poly_coeffs[2] * current_depth**2
+    )
+
+    corrected_flow = flow_coeff * base_flow * depth_factor
+
+    return max(0.0, corrected_flow)
+
+
+def get_water_flow_advanced_params(
+    depths: NDArray,
+    vels: NDArray,
+    old_depth: float,
+    roughness: float,
+    current_depth: float,
+    velocity_exp: float = -2.533090413373657,  # Exponente para perfil de velocidad
+    depth_scaling: float = 0.985343542633097,  # Factor de escalado de profundidad
+    width_correction: float = 0.5320227238237,  # Factor de corrección de ancho
+    roughness_modifier: float = 1.0831297709762364,  # Modificador de rugosidad
+) -> float:
+    """Compute water flow with advanced parameter optimization.
+
+    This function includes additional parameters that can be tuned:
+    - velocity_exp: Controls velocity profile shape (default 1/roughness)
+    - depth_scaling: Scales effective depth calculation
+    - width_correction: Adjusts effective channel width
+    - roughness_modifier: Fine-tunes roughness coefficient
+
+    Args:
+        depths: Array of depths (N,2) (meters, meters).
+        vels: Array of velocities (N,) (m/s).
+        old_depth: Depth when depths were measured (meters).
+        roughness: Base roughness coefficient (Manning's n).
+        current_depth: Current depth (meters).
+        velocity_exp: Velocity profile exponent.
+        depth_scaling: Depth scaling factor.
+        width_correction: Width correction factor.
+        roughness_modifier: Roughness modification factor.
+
+    Returns:
+        float: Water flow (m^3/s).
+    """
+    assert depths.shape[0] == vels.shape[0], (
+        "Depth and velocities must have the same length."
+    )
+
+    # Coordinates along the river width
+    x = depths[:, 1] * width_correction
+
+    # Update depths with scaling
+    new_depths = depths[:, 0] + (current_depth - old_depth) * depth_scaling
+    new_depths = np.where(new_depths < 0, 0, new_depths)
+
+    # Create fine x grid
+    x_fine = np.linspace(x.min(), x.max(), 10000)
+
+    # Interpolate riverbed profile and velocities
+    new_depths_fine = np.interp(x_fine, x, new_depths)
+    vels_fine = np.interp(x_fine, x, vels)
+
+    # Modified roughness coefficient
+    effective_roughness = roughness * roughness_modifier
+
+    # Compute water flow per width unit with custom velocity exponent
+    q_fine = (
+        vels_fine
+        * new_depths_fine
+        * effective_roughness
+        / (effective_roughness + velocity_exp)
+    )
+
+    # Integrate over width
+    water_flow = np.trapz(q_fine, x_fine)
+
+    return max(0.0, water_flow)
