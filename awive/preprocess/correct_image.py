@@ -27,7 +27,7 @@ from awive.config import (
 )
 from awive.exceptions import VideoSourceError
 from awive.loader import make_loader
-from awive.tools import imdebug, imshow
+from awive.tools import imshow
 
 LOG = logging.getLogger(__name__)
 
@@ -309,7 +309,7 @@ class Formatter:
         self._rotation_matrix = self._get_rotation_matrix()
         return image
 
-    def apply(self, image: NDArray, debug: bool = False) -> NDArray:
+    def apply(self, image: NDArray) -> NDArray:
         """Apply all preprocessing steps to the image.
 
         Steps:
@@ -322,24 +322,16 @@ class Formatter:
 
         Args:
             image: The input image to process.
-            debug: Whether to save debug images at each step.
 
         Returns:
             The processed image.
         """
-        imdebug(image, "debug_process/step-0_input.jpg", debug)
         image = self.apply_lens_correction(image)
-        imdebug(image, "debug_process/step-1_lens_correction.jpg", debug)
         image = self.apply_crop_using_refs(image)
-        imdebug(image, "debug_process/step-2_crop_using_refs.jpg", debug)
         image = self.apply_orthorectification(image)
-        imdebug(image, "debug_process/step-3_orthorectification.jpg", debug)
         image = self.apply_roi_extraction(image)
-        imdebug(image, "debug_process/step-4_roi_extraction.jpg", debug)
         image = self.apply_resolution(image)
-        imdebug(image, "debug_process/step-5_resolution.jpg", debug)
         image = self.apply_image_enhancement(image)
-        imdebug(image, "debug_process/step-6_image_enhancement.jpg", debug)
 
         return image
 

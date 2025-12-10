@@ -18,11 +18,3 @@ def imshow(
     if handle_destroy:
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-
-
-def imdebug(img: NDArray, filename: str, save: bool = False) -> None:
-    """Save an image with debug information."""
-    # TODO: add more debug info like timestamp, frame number, etc.
-    if not save:
-        return
-    cv2.imwrite(filename, img)
