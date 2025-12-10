@@ -55,10 +55,6 @@ def process_video(
 
     velocimetry_array = [float(v) for v in velocimetry]
     river_width = float(depths[-1, 1] - depths[0, 1])
-    print(depths[-1, 0], depths[0, 0])
-    print(f"{velocimetry_array=}")
-    for i in range(len(velocimetry_array)):
-        print(f"  Region {i + 1}: {velocimetry_array[i]} m/s")
     print(f"Water flow: {water_flow:.3f} m³/s")
     print(f"River width: {river_width:.3f} m")
     water_flow_array = float(water_flow)
