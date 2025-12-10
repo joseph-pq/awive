@@ -331,9 +331,8 @@ class Formatter:
         image = self.apply_orthorectification(image)
         image = self.apply_roi_extraction(image)
         image = self.apply_resolution(image)
-        image = self.apply_image_enhancement(image)
 
-        return image
+        return self.apply_image_enhancement(image)
 
 
 def main(config_fp: Path, save_image: bool = False) -> None:
