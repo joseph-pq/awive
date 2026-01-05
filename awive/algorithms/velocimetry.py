@@ -4,7 +4,6 @@ import logging
 from pathlib import Path
 
 import numpy as np
-import sympy as sp
 import yaml
 
 import awive.config
@@ -27,7 +26,7 @@ def process_video(
         awive_fp: Path to the awive config file.
         area: Area of the water flow.
         ts: Timestamp of the data. If None, use current time.
-        wlevel: Current water level. If None, use simplest water flow calculation.
+        wlevel: Current water level. If None, use simplest water flow calc.
     """
     ts = ts if ts is not None else dt.datetime.now(dt.UTC)
     raw: dict
