@@ -2,7 +2,6 @@ from typing import TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy.interpolate import CubicSpline
 
 
 class Velocity(TypedDict):
