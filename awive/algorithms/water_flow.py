@@ -43,25 +43,6 @@ def get_simplest_water_flow(
     return area * mean_velocity
 
 
-def integrate_vels_over_depth(
-    depths: NDArray, vels: NDArray, width: float, roughness: float
-) -> float:
-    """Integrate velocities over depth to compute water flow."""
-    assert len(depths) == len(vels), (
-        "Depth and velocities must have the same length."
-    )
-    water_flow = 0
-    for d, v in zip(depths, vels):
-        x = np.linspace(0, d, 100000)
-        if d == 0:
-            segment_area = 0.0
-        else:
-            y = v * ((x / d) ** (1 / roughness))
-            segment_area = np.trapz(y, x)
-        water_flow += segment_area * width
-    return water_flow
-
-
 def get_water_flow(
     depths: NDArray,
     vels: NDArray,
