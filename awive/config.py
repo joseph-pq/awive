@@ -385,6 +385,14 @@ class WaterFlow(BaseModel):
     roughness: float = Field(
         default=8, description="Manning's roughness coefficient."
     )
+    a: float = Field(
+        default=0.646465,
+        description="Coefficient a for the water flow correction.",
+    )
+    b: float = Field(
+        default=9.95,
+        description="Coefficient b for the water flow correction.",
+    )
 
 
 class Config(BaseModel):
