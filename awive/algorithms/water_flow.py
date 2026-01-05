@@ -248,8 +248,8 @@ def get_water_flow_linear_corrected(
     old_depth: float,
     roughness: float,
     current_depth: float,
-    correction_a: float = 0.8252,  # Parámetro de escala optimizado
-    correction_b: float = 0.8916,  # Parámetro de offset optimizado
+    a_coeff: float = 0.646465,  # Parámetro de escala optimizado
+    b_coeff: float = 9.95,  # Parámetro de offset optimizado
 ) -> float:
     """Compute water flow with linear correction optimized for SENAMHI data.
 
@@ -277,7 +277,7 @@ def get_water_flow_linear_corrected(
     )
 
     # Apply linear correction
-    corrected_flow = correction_a * base_flow + correction_b
+    corrected_flow = a_coeff * base_flow + b_coeff
 
     # Ensure non-negative flow
     return max(0.0, corrected_flow)
