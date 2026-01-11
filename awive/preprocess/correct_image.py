@@ -170,7 +170,6 @@ class Formatter:
         Args:
             image: The input image to process.
             gray: Whether to convert the image to grayscale.
-            resize_factor: Factor by which to resize the image.
 
         Returns:
             The processed image.
@@ -199,7 +198,21 @@ class Formatter:
         #     gamma=self.enhance_gamma)
         return image
 
-    def _crop_using_refs(self, image: np.ndarray) -> np.ndarray:
+    def apply_crop_using_refs(
+        self, image: np.ndarray, apply: bool = False
+    ) -> np.ndarray:
+        """Apply image cropping based on GCP's locations.
+
+        Args:
+            image: The input image to process.
+            apply: Whether to apply the crop or not
+
+        Returns:
+            The processed image.
+        """
+        if not apply:
+            return image
+        # apply a crop on the image taking the GCP's as references
         image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         x_min, y_min = np.min(self.dataset.gcp.pixels_coordinates, axis=0)
         x_max, y_max = np.max(self.dataset.gcp.pixels_coordinates, axis=0)
@@ -268,7 +281,7 @@ class Formatter:
 
         return image
 
-    def apply_distortion_correction(self, image: np.ndarray) -> np.ndarray:
+    def apply_orthorectification(self, image: np.ndarray) -> np.ndarray:
         """Undistort image using Ground Control Points (GCP).
 
         Updates:
@@ -287,7 +300,6 @@ class Formatter:
         if self._or_params is None:
             LOG.error("No orthorectification parameters found")
             return image
-        # image = self._crop_using_refs(image)
         # apply orthorectification
         image = ip.apply_orthorec(
             image, self._or_params[0], self._or_params[1]
@@ -297,18 +309,26 @@ class Formatter:
         self._rotation_matrix = self._get_rotation_matrix()
         return image
 
-    def apply(self, image: NDArray) -> tuple[NDArray, NDArray]:
+    def apply(self, image: NDArray) -> NDArray:
         """Apply all preprocessing steps to the image.
+
+        Steps:
+            1. Correct image distortion due to lens camera
+            2. Crop using Ground Control Points (GCP)
+            3. Apply orthorectification using GCP
+            4. Crop and rotate image to region of interest
+            5. Scale image to desired resolution
+            6. Apply image enhancement effects
 
         Args:
             image: The input image to process.
-            positions: Positions to be transformed of shape (N, 2).
 
         Returns:
-            The processed image and transformed positions.
+            The processed image.
         """
         image = self.apply_lens_correction(image)
-        image = self.apply_distortion_correction(image)
+        image = self.apply_crop_using_refs(image)
+        image = self.apply_orthorectification(image)
         image = self.apply_roi_extraction(image)
         image = self.apply_resolution(image)
 
