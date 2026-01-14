@@ -48,8 +48,8 @@ def get_water_flow(
     old_depth: float,
     roughness: float,
     current_depth: float,
-    a_coeff: float = 0.646465,  # Parámetro de escala optimizado
-    b_coeff: float = 9.95,  # Parámetro de offset optimizado
+    a_coeff: float = 0.646465,  # Scale parameter
+    b_coeff: float = 9.95,  # Offset parameter
 ) -> float:
     """Compute water flow using Manning's equation with depth profiles.
 
