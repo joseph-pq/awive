@@ -53,15 +53,12 @@ def process_video(
         )
 
     velocimetry_array = [float(v) for v in velocimetry]
-    river_width = float(depths[-1, 1] - depths[0, 1])
     print(f"Water flow: {water_flow:.3f} m³/s")
-    print(f"River width: {river_width:.3f} m")
     water_flow_array = float(water_flow)
     data_save = {
         "timestamp": ts,
         "velocimetry": velocimetry_array,
         "water_flow": water_flow_array,
-        "river_width": river_width,
     }
 
     with open("/root/awive/data.yaml", "w") as f:
