@@ -42,51 +42,85 @@ def get_simplest_water_flow(
     return area * mean_velocity
 
 
-def integrate_vels_over_depth(
-    depths: NDArray, vels: NDArray, width: float, roughness: float
-) -> float:
-    """Integrate velocities over depth to compute water flow."""
-    assert len(depths) == len(vels), (
-        "Depth and velocities must have the same length."
-    )
-    water_flow = 0
-    for d, v in zip(depths, vels):
-        x = np.linspace(0, d, 100000)
-        if d == 0:
-            segment_area = 0.0
-        else:
-            y = v * ((x / d) ** (1 / roughness))
-            segment_area = np.trapz(y, x)
-        water_flow += segment_area * width
-    return water_flow
-
-
 def get_water_flow(
     depths: NDArray,
     vels: NDArray,
     old_depth: float,
     roughness: float,
     current_depth: float,
+    a_coeff: float = 0.646465,  # Scale parameter
+    b_coeff: float = 9.95,  # Offset parameter
 ) -> float:
-    """Compute the water flow based on profile and velocities.
+    """Compute water flow using Manning's equation with depth profiles.
+
+    This function calculates the water flow rate by integrating
+    velocity profiles over the cross-sectional area of a river. It
+    uses Manning's equation to model the vertical velocity distribution
+    and applies a linear correction based on optimized coefficients.
+
+    The vertical velocity profile follows: v(z) = v * (z/d)^(1/n)
+    where z is the depth, d is the total depth, and n is the
+    roughness coefficient.
 
     Args:
-        depths: Array of depths (N,2) (meters, meters). First column is depth,
-            second is distance between depths.
-        vels: Array of velocities (N,) (m/s).
-        old_depth: Depth when depths were measured (meters).
-        roughness: Roughness coefficient (Manning's n).
-        current_depth: Current depth (meters).
+        depths: 2D array of shape (N, 2) where each row contains
+            [depth, x_position]. First column represents the riverbed
+            depth at each position along the width. Second column
+            represents the x-coordinate along the river width.
+        vels: 1D array of surface velocities corresponding to each
+            depth measurement. Must have the same length as depths.
+        old_depth: Reference water depth used during velocity
+            measurements.
+        roughness: Manning's roughness coefficient (n). Controls the
+            shape of the vertical velocity profile.
+        current_depth: Current water depth for which to compute the
+            flow rate.
+        a_coeff: Linear correction scaling coefficient. Default is
+            0.646465 (optimized).
+        b_coeff: Linear correction offset coefficient. Default is 9.95
+            (optimized).
 
     Returns:
-        float: Water flow (m^3/s).
+        float: Computed water flow rate in cubic meters per second
+            (m³/s), after applying the linear correction:
+            a_coeff * flow + b_coeff.
+
+    Raises:
+        AssertionError: If depths and vels arrays have different
+            lengths.
+
+    Note:
+        The function adjusts depths based on the difference between
+        current_depth and old_depth, and sets negative depths to zero.
+        The final flow rate is computed by integrating the velocity
+        profile over the entire cross-section.
     """
     assert depths.shape[0] == vels.shape[0], (
         "Depth and velocities must have the same length."
     )
-    # Calculate width as mean distance between depth points
-    width = float(np.mean(np.diff(depths[:, 1])))  # m
+    # Coordinates along the river width
+    x = depths[:, 1]
     # Update depths based on current and old depth
     new_depths = depths[:, 0] + (current_depth - old_depth)
     new_depths = np.where(new_depths < 0, 0, new_depths)
-    return integrate_vels_over_depth(new_depths, vels, width, roughness)
+
+    # Create fine x grid
+    x_fine = np.linspace(x.min(), x.max(), 10000)
+
+    # Interpolate riverbed profile
+    new_depths_fine = np.interp(x_fine, x, new_depths)  # depths along width
+
+    # Interpolate velocities
+    vels_fine = np.interp(x_fine, x, vels)  # velocity along width
+
+    # Compute water flow per width unit (using Manning's equation)
+    # v(z) = v * (z/d)^(1/n)
+    # q = integrate v(z) dz from 0 to d
+
+    q_fine = vels_fine * new_depths_fine * (roughness) / (roughness + 1)
+
+    # Compute water flow by integrating q over the width
+    water_flow = np.trapz(q_fine, x_fine)
+
+    # Apply linear correction
+    return a_coeff * water_flow + b_coeff

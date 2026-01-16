@@ -364,6 +364,16 @@ class Profile(BaseModel):
         """
         return np.array([[d.x, d.y, d.z] for d in self.depths])
 
+    def depths_meters(self, ppm: float, resolution: float = 1.0) -> NDArray:
+        """Returns (z,y) coordinates in meters.
+
+        Array of shape (n, 2) where n is the number of depths,
+        and the columns are (depths, vertical position) in meters.
+        """
+        return np.array(
+            [[d.z, d.y * 1 / (ppm * resolution)] for d in self.depths]
+        )
+
 
 class WaterFlow(BaseModel):
     """Configuration Water Flow."""
@@ -374,6 +384,14 @@ class WaterFlow(BaseModel):
     profile: Profile = Field(default=..., description="Profile of the river.")
     roughness: float = Field(
         default=8, description="Manning's roughness coefficient."
+    )
+    a: float = Field(
+        default=0.646465,
+        description="Coefficient a for the water flow correction.",
+    )
+    b: float = Field(
+        default=9.95,
+        description="Coefficient b for the water flow correction.",
     )
 
 
